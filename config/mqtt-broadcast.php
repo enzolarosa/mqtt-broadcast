@@ -8,7 +8,7 @@ return [
 
     ],
 
-    'password' => env('MQTT_MASTER_PASS', \Illuminate\Support\Str\Str::random(32)),
+    'password' => env('MQTT_MASTER_PASS', Illuminate\Support\Str::random(32)),
 
     'connections' => [
         'local' => [
