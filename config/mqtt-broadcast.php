@@ -5,7 +5,6 @@ return [
         'enable' => env('MQTT_LOG_ENABLE', true),
         'connection' => env('MQTT_LOG_CONNECTION', 'logs'),
         'table' => env('MQTT_LOG_TABLE', 'mqtt_loggers'),
-
     ],
 
     'password' => env('MQTT_MASTER_PASS', Illuminate\Support\Str::random(32)),
