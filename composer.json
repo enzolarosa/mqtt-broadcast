@@ -4,13 +4,15 @@
     "keywords": [
         "enzolarosa",
         "laravel",
-        "mqtt-broadcast"
+        "mqtt-broadcast",
+        "mqtt",
+        "broadcast"
     ],
     "homepage": "https://github.com/enzolarosa/mqtt-broadcast",
     "license": "MIT",
     "authors": [
         {
-            "name": "enzolarosa",
+            "name": "Vincenzo La Rosa",
             "email": "hello@enzolarosa.dev",
             "role": "Developer"
         }
