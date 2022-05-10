@@ -4,7 +4,7 @@ return [
     'logs' => [
         'enable' => env('MQTT_LOG_ENABLE', true),
         'connection' => env('MQTT_LOG_CONNECTION', 'logs'),
-'table'=>env('MQTT_LOG_TABLE','mqtt_loggers'),
+        'table' => env('MQTT_LOG_TABLE', 'mqtt_loggers'),
 
     ],
 
