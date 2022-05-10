@@ -18,7 +18,6 @@ class MqttBroadcastServiceProvider extends PackageServiceProvider
         $package
             ->name('mqtt-broadcast')
             ->hasConfigFile()
-            ->hasViews()
             ->hasMigration('create_mqtt-broadcast_table')
             ->hasCommand(MqttBroadcastCommand::class);
     }
