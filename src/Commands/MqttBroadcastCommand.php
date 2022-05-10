@@ -1,12 +1,12 @@
 <?php
 
-namespace VendorName\Skeleton\Commands;
+namespace enzolarosa\MqttBroadcast\Commands;
 
 use Illuminate\Console\Command;
 
-class SkeletonCommand extends Command
+class MqttBroadcastCommand extends Command
 {
-    public $signature = 'skeleton';
+    public $signature = 'mqtt-broadcast';
 
     public $description = 'My command';
 

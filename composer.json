@@ -1,17 +1,17 @@
 {
-    "name": ":vendor_slug/:package_slug",
-    "description": ":package_description",
+    "name": "enzolarosa/mqtt-broadcast",
+    "description": "Use the mqtt power in your projects",
     "keywords": [
-        ":vendor_name",
+        "enzolarosa",
         "laravel",
-        ":package_slug"
+        "mqtt-broadcast"
     ],
-    "homepage": "https://github.com/:vendor_slug/:package_slug",
+    "homepage": "https://github.com/enzolarosa/mqtt-broadcast",
     "license": "MIT",
     "authors": [
         {
-            "name": ":author_name",
-            "email": "author@domain.com",
+            "name": "enzolarosa",
+            "email": "hello@enzolarosa.dev",
             "role": "Developer"
         }
     ],
@@ -34,13 +34,13 @@
     },
     "autoload": {
         "psr-4": {
-            "VendorName\\Skeleton\\": "src",
-            "VendorName\\Skeleton\\Database\\Factories\\": "database/factories"
+            "enzolarosa\\MqttBroadcast\\": "src",
+            "enzolarosa\\MqttBroadcast\\Database\\Factories\\": "database/factories"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "VendorName\\Skeleton\\Tests\\": "tests"
+            "enzolarosa\\MqttBroadcast\\Tests\\": "tests"
         }
     },
     "scripts": {
@@ -54,10 +54,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "VendorName\\Skeleton\\SkeletonServiceProvider"
+                "enzolarosa\\MqttBroadcast\\MqttBroadcastServiceProvider"
             ],
             "aliases": {
-                "Skeleton": "VendorName\\Skeleton\\Facades\\Skeleton"
+                "MqttBroadcast": "enzolarosa\\MqttBroadcast\\Facades\\MqttBroadcast"
             }
         }
     },
