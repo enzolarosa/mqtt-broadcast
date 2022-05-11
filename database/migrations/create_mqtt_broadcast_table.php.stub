@@ -13,14 +13,14 @@ return new class extends Migration {
 
         Schema::connection(config('mqtt-broadcast.logs.connection'))
             ->create(config('mqtt-broadcast.logs.table'), function (Blueprint $table) {
-            $table->id();
-            $table->uuid('external_id')->unique();
+                $table->id();
+                $table->uuid('external_id')->unique();
 
-            $table->string('broker')->default('remote')->index();
-            $table->string('topic')->nullable();
-            $table->longText('message')->nullable();
+                $table->string('broker')->default('remote')->index();
+                $table->string('topic')->nullable();
+                $table->longText('message')->nullable();
 
-            $table->timestamps();
-        });
+                $table->timestamps();
+            });
     }
 };
