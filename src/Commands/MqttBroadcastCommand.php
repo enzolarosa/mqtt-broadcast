@@ -24,7 +24,7 @@ class MqttBroadcastCommand extends Command
         $mqtt = new MqttClient($server, $port, $clientId);
         $mqtt->connect();
 
-        $this->info('MQTT Listener started successfully at:' . now()->toIso8601String());
+        $this->info("MQTT Broadcast started listener `$broker` successfully at: " . now()->toIso8601String());
 
         $mqtt->subscribe('#', function ($topic, $message) use ($broker) {
             $this->comment(sprintf("Received message on topic [%s]: %s", $topic, $message));
@@ -45,7 +45,6 @@ class MqttBroadcastCommand extends Command
         pcntl_signal(SIGINT, function () use ($mqtt) {
             $this->line('Shutting down...');
 
-            $mqtt->interrupt();
             $mqtt->disconnect();
         });
 

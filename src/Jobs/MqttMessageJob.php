@@ -18,7 +18,7 @@ use PhpMqtt\Client\MqttClient;
 class MqttMessageJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-    
+
     protected string $broker;
     protected string $topic;
     protected string $message;
@@ -47,8 +47,8 @@ class MqttMessageJob implements ShouldQueue
      */
     public function handle()
     {
-        $server = config("fw.mqtt.$this->broker.host");
-        $port = config("fw.mqtt.$this->broker.port");
+        $server = config("mqtt-broadcast.connections.$this->broker.host");
+        $port = config("mqtt-broadcast.connections.$this->broker.port");
 
         $mqtt = new MqttClient($server, $port, self::$clientId[$this->broker]);
         $mqtt->connect();
