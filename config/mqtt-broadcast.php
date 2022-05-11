@@ -1,5 +1,5 @@
 <?php
-// config for enzolarosa/MqttBroadcast
+
 return [
     'logs' => [
         'enable' => env('MQTT_LOG_ENABLE', true),
@@ -17,11 +17,11 @@ return [
             'password' => env('MQTT_PASSWORD'),
         ],
 
-        'remote' => [
-            'host' => env('MQTT_REMOTE_HOST', '127.0.0.1'),
-            'port' => env('MQTT_REMOTE_PORT', '1883'),
-            'user' => env('MQTT_REMOTE_USER'),
-            'password' => env('MQTT_REMOTE_PASSWORD'),
-        ],
+//        'remote' => [
+//            'host' => env('MQTT_REMOTE_HOST', '127.0.0.1'),
+//            'port' => env('MQTT_REMOTE_PORT', '1883'),
+//            'user' => env('MQTT_REMOTE_USER'),
+//            'password' => env('MQTT_REMOTE_PASSWORD'),
+//        ],
     ]
 ];
