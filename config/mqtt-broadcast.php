@@ -3,7 +3,7 @@
 return [
     'logs' => [
         'enable' => env('MQTT_LOG_ENABLE', true),
-        'connection' => env('MQTT_LOG_CONNECTION', 'logs'),
+        'connection' => env('MQTT_LOG_CONNECTION', 'mysql'),
         'table' => env('MQTT_LOG_TABLE', 'mqtt_loggers'),
     ],
 
