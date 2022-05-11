@@ -7,10 +7,8 @@ use enzolarosa\MqttBroadcast\Listeners\Interfaces\Listener as ListenerInterface;
 
 abstract class MqttListener implements ListenerInterface
 {
-    public function __construct(
-        protected string $handleBroker = 'local',
-        protected string $topic = '*'
-    ){}
+    protected string $handleBroker = 'local';
+    protected string $topic = '*';
 
     abstract public function processMessage(string $topic, object $obj);
 
