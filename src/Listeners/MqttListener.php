@@ -28,8 +28,17 @@ abstract class MqttListener implements ListenerInterface
             return;
         }
 
+        if (!$this->preProcessMessage()) {
+            return;
+        }
+
         $obj = json_decode($event->getMessage());
 
         $this->processMessage($topic, $obj);
+    }
+
+    public function preProcessMessage(?string $topic = null, ?object $obj = null): bool
+    {
+        return true;
     }
 }
