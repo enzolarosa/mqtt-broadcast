@@ -21,10 +21,7 @@ abstract class MqttListener implements ListenerInterface
             return;
         }
 
-        if (
-            $topic != '*'
-            && $topic != $this->topic
-        ) {
+        if ($topic != $this->topic && $this->topic != '*') {
             return;
         }
 
