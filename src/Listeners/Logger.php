@@ -15,12 +15,12 @@ class Logger
 
         $broker = $event->getBroker();
         $topic = $event->getTopic();
-        $message = $event->getMessage();
+        $message = json_decode($event->getMessage());
 
         MqttLogger::query()->create([
-            'topic' => $topic,
+            'topic'   => $topic,
             'message' => $message,
-            'broker' => $broker,
+            'broker'  => $broker,
         ]);
     }
 }
