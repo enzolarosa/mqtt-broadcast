@@ -3,6 +3,7 @@
 namespace enzolarosa\MqttBroadcast;
 
 use enzolarosa\MqttBroadcast\Commands\MqttBroadcastCommand;
+use enzolarosa\MqttBroadcast\Commands\MqttBroadcastInstallCommand;
 use enzolarosa\MqttBroadcast\Commands\MqttBroadcastTestCommand;
 use enzolarosa\MqttBroadcast\Events\MqttMessageReceived;
 use enzolarosa\MqttBroadcast\Listeners\Logger;
@@ -30,7 +31,8 @@ class MqttBroadcastServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasMigration('create_mqtt_broadcast_table')
             ->hasCommand(MqttBroadcastCommand::class)
-            ->hasCommand(MqttBroadcastTestCommand::class);
+            ->hasCommand(MqttBroadcastTestCommand::class)
+            ->hasCommand(MqttBroadcastInstallCommand::class);
     }
 
     public function packageRegistered()
