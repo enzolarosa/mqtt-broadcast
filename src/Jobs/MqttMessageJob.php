@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
 use PhpMqtt\Client\Exceptions\ConfigurationInvalidException;
@@ -19,20 +20,27 @@ class MqttMessageJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected string $broker;
-    protected string $topic;
-    protected string $message;
-    protected int $qos;
     protected static array $clientId;
 
-    public function __construct(string $topic, string $message, ?string $broker = 'local', int $qos = 0, ?string $clientId = null)
+    public function __construct(
+        protected string  $topic,
+        protected         $message,
+        protected ?string $broker = 'local',
+        protected int     $qos = 0)
     {
-        $this->topic = $topic;
-        $this->message = $message;
-        $this->qos = $qos;
-        $this->broker = $broker;
+        self::$clientId[$this->broker] = Str::uuid();
+        $this->onQueue(config('mqtt-broadcast.queue.name'));
+        $this->onConnection(config('mqtt-broadcast.queue.connection'));
+    }
 
-        self::$clientId[$this->broker] = $clientId ?? Str::uuid();
+    public function middleware()
+    {
+        $middleware = [];
+        if (config('mqtt-broadcast.queue.middleware')) {
+            $middleware = [(new RateLimited(config('mqtt-broadcast.queue.middleware')))];
+        }
+
+        return $middleware;
     }
 
     /**
@@ -49,6 +57,10 @@ class MqttMessageJob implements ShouldQueue
     {
         $server = config("mqtt-broadcast.connections.$this->broker.host");
         $port = config("mqtt-broadcast.connections.$this->broker.port");
+
+        if (!is_string($this->message)) {
+            $this->message = json_encode($this->message);
+        }
 
         $mqtt = new MqttClient($server, $port, self::$clientId[$this->broker]);
         $mqtt->connect();
