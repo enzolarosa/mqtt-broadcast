@@ -20,7 +20,6 @@ class MqttMessageJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected static array $clientId = [];
 
     public function __construct(
         protected string  $topic,
@@ -28,7 +27,6 @@ class MqttMessageJob implements ShouldQueue
         protected ?string $broker = 'local',
         protected int     $qos = 0)
     {
-        self::$clientId[$this->broker] = Str::uuid();
         $this->onQueue(config('mqtt-broadcast.queue.name'));
         $this->onConnection(config('mqtt-broadcast.queue.connection'));
     }
@@ -62,7 +60,7 @@ class MqttMessageJob implements ShouldQueue
             $this->message = json_encode($this->message);
         }
 
-        $mqtt = new MqttClient($server, $port, self::$clientId[$this->broker]);
+        $mqtt = new MqttClient($server, $port, Str::uuid()->toString());
         $mqtt->connect();
         $mqtt->publish($this->topic, $this->message, $this->qos);
         $mqtt->disconnect();
