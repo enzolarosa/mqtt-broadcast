@@ -20,7 +20,7 @@ class MqttMessageJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected static array $clientId;
+    protected static array $clientId = [];
 
     public function __construct(
         protected string  $topic,
