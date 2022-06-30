@@ -4,9 +4,15 @@ namespace enzolarosa\MqttBroadcast\Listeners;
 
 use enzolarosa\MqttBroadcast\Events\MqttMessageReceived;
 use enzolarosa\MqttBroadcast\Listeners\Interfaces\Listener as ListenerInterface;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\SerializesModels;
 
-abstract class MqttListener implements ListenerInterface
+abstract class MqttListener implements ListenerInterface , ShouldQueue
 {
+    use Queueable;
+    use SerializesModels;
+
     protected string $handleBroker = 'local';
 
     protected string $topic = '*';
