@@ -4,6 +4,7 @@ namespace enzolarosa\MqttBroadcast\Commands;
 
 use enzolarosa\MqttBroadcast\Events\MqttMessageReceived;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use PhpMqtt\Client\MqttClient;
 use Throwable;
@@ -22,10 +23,12 @@ class MqttBroadcastCommand extends Command
         $server = config("mqtt-broadcast.connections.$broker.host");
         $port = config("mqtt-broadcast.connections.$broker.port");
 
+        Cache::put("mqtt_listener_$broker", $this->pid());
+
         $mqtt = new MqttClient($server, $port, $clientId);
         $mqtt->connect();
 
-        $this->info("MQTT Broadcast started listener `$broker` successfully at: ".now()->toIso8601String());
+        $this->info("MQTT Broadcast started listener `$broker` successfully at: " . now()->toIso8601String());
 
         $mqtt->subscribe('#', function ($topic, $message) use ($broker) {
             $this->comment(sprintf('Received message on topic [%s]: %s', $topic, $message));
