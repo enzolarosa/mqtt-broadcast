@@ -49,7 +49,9 @@ class MqttBroadcastCommand extends Command
         pcntl_signal(SIGINT, function () use ($mqtt) {
             $this->line('Shutting down...');
 
-            $mqtt->disconnect();
+            if (!posix_kill($this->pid(), SIGTERM)) {
+                $this->error("Failed to kill process: {$this->pid()} (" . posix_strerror(posix_get_last_error()) . ')');
+            }
         });
 
         $mqtt->loop();
