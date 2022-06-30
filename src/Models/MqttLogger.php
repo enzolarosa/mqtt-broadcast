@@ -13,7 +13,11 @@ class MqttLogger extends Model
 
     public function __construct()
     {
-        $this->connection = config('mqtt-broadcast.logs.connection');
+        $dbConnection = config('mqtt-broadcast.logs.connection');
+        if ($dbConnection) {
+            $this->connection = $dbConnection;
+        }
+
         $this->table = config('mqtt-broadcast.logs.table');
 
         parent::__construct();
@@ -26,9 +30,8 @@ class MqttLogger extends Model
     ];
 
     protected $casts = [
-        'message'    => 'json',
+        'message' => 'json',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
     ];
 }
