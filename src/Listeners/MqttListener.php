@@ -8,7 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\SerializesModels;
 
-abstract class MqttListener implements ListenerInterface , ShouldQueue
+abstract class MqttListener implements ListenerInterface, ShouldQueue
 {
     use Queueable;
     use SerializesModels;
@@ -32,7 +32,7 @@ abstract class MqttListener implements ListenerInterface , ShouldQueue
             return;
         }
 
-        if (! $this->preProcessMessage()) {
+        if (!$this->preProcessMessage()) {
             return;
         }
 
