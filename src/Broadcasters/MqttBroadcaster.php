@@ -123,7 +123,7 @@ class MqttBroadcaster extends Broadcaster
         }
     }
 
-    public function getPusher():MqttClient
+    public function getPusher(): MqttClient
     {
         return $this->mqtt;
     }

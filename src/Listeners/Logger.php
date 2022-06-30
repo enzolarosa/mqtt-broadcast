@@ -9,7 +9,7 @@ class Logger
 {
     public function handle(MqttMessageReceived $event): void
     {
-        if (!config('mqtt-broadcast.logs.enable')) {
+        if (! config('mqtt-broadcast.logs.enable')) {
             return;
         }
 

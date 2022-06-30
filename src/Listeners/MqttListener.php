@@ -8,6 +8,7 @@ use enzolarosa\MqttBroadcast\Listeners\Interfaces\Listener as ListenerInterface;
 abstract class MqttListener implements ListenerInterface
 {
     protected string $handleBroker = 'local';
+
     protected string $topic = '*';
 
     abstract public function processMessage(string $topic, object $obj);
@@ -25,7 +26,7 @@ abstract class MqttListener implements ListenerInterface
             return;
         }
 
-        if (!$this->preProcessMessage()) {
+        if (! $this->preProcessMessage()) {
             return;
         }
 

@@ -2,9 +2,9 @@
 
 namespace enzolarosa\MqttBroadcast\Tests;
 
+use enzolarosa\MqttBroadcast\MqttBroadcastServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
-use enzolarosa\MqttBroadcast\MqttBroadcastServiceProvider;
 
 class TestCase extends Orchestra
 {

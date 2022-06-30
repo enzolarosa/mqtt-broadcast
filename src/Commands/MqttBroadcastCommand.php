@@ -11,6 +11,7 @@ use Throwable;
 class MqttBroadcastCommand extends Command
 {
     public $signature = 'mqtt-broadcast {broker}';
+
     protected $description = 'Listener for mqtt message';
 
     public function handle(): int
@@ -24,10 +25,10 @@ class MqttBroadcastCommand extends Command
         $mqtt = new MqttClient($server, $port, $clientId);
         $mqtt->connect();
 
-        $this->info("MQTT Broadcast started listener `$broker` successfully at: " . now()->toIso8601String());
+        $this->info("MQTT Broadcast started listener `$broker` successfully at: ".now()->toIso8601String());
 
         $mqtt->subscribe('#', function ($topic, $message) use ($broker) {
-            $this->comment(sprintf("Received message on topic [%s]: %s", $topic, $message));
+            $this->comment(sprintf('Received message on topic [%s]: %s', $topic, $message));
             try {
                 MqttMessageReceived::dispatch(
                     $topic,

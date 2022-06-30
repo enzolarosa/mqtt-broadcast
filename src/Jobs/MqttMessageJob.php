@@ -18,17 +18,26 @@ use PhpMqtt\Client\MqttClient;
 
 class MqttMessageJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
 
     public function __construct(
-        protected string  $topic,
+        protected string $topic,
         protected         $message,
         protected ?string $broker = 'local',
-        protected int     $qos = 0)
+        protected int $qos = 0)
     {
-        $this->onQueue(config('mqtt-broadcast.queue.name'));
-        $this->onConnection(config('mqtt-broadcast.queue.connection'));
+        $queue = config('mqtt-broadcast.queue.name');
+        $connection = config('mqtt-broadcast.queue.connection');
+
+        if ($queue) {
+            $this->onQueue($queue);
+        }
+        if ($connection) {
+            $this->onConnection($connection);
+        }
     }
 
     public function middleware()
@@ -45,6 +54,7 @@ class MqttMessageJob implements ShouldQueue
      * Execute the job.
      *
      * @return void
+     *
      * @throws DataTransferException
      * @throws ProtocolNotSupportedException
      * @throws RepositoryException
@@ -56,7 +66,7 @@ class MqttMessageJob implements ShouldQueue
         $server = config("mqtt-broadcast.connections.$this->broker.host");
         $port = config("mqtt-broadcast.connections.$this->broker.port");
 
-        if (!is_string($this->message)) {
+        if (! is_string($this->message)) {
             $this->message = json_encode($this->message);
         }
 
