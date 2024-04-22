@@ -18,10 +18,7 @@ use PhpMqtt\Client\MqttClient;
 
 class MqttMessageJob implements ShouldQueue
 {
-    use Dispatchable;
-    use InteractsWithQueue;
-    use Queueable;
-    use SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
         protected string  $topic,

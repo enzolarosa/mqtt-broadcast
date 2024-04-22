@@ -32,7 +32,7 @@ abstract class MqttListener implements ListenerInterface, ShouldQueue
             return;
         }
 
-        if (!$this->preProcessMessage()) {
+        if (! $this->preProcessMessage()) {
             return;
         }
 

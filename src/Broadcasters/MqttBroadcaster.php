@@ -78,31 +78,12 @@ class MqttBroadcaster extends Broadcaster
     }
 
     /**
-     * Decode the given Pusher response.
-     *
-     * @param  Request  $request
-     * @param  mixed  $response
-     * @return array
-     */
-    protected function decodePusherResponse($request, $response)
-    {
-        if (! $request->input('callback', false)) {
-            return json_decode($response, true);
-        }
-
-        return response()->json(json_decode($response, true))
-                    ->withCallback($request->callback);
-    }
-
-    /**
      * Broadcast the given event.
      *
-     * @param  array  $channels
      * @param  string  $event
-     * @param  array  $payload
      * @return void
      *
-     * @throws \Illuminate\Broadcasting\BroadcastException
+     * @throws BroadcastException
      */
     public function broadcast(array $channels, $event, array $payload = [])
     {
@@ -131,5 +112,22 @@ class MqttBroadcaster extends Broadcaster
     public function setPusher($mqtt)
     {
         $this->mqtt = $mqtt;
+    }
+
+    /**
+     * Decode the given Pusher response.
+     *
+     * @param  Request  $request
+     * @param  mixed  $response
+     * @return array
+     */
+    protected function decodePusherResponse($request, $response)
+    {
+        if (! $request->input('callback', false)) {
+            return json_decode($response, true);
+        }
+
+        return response()->json(json_decode($response, true))
+            ->withCallback($request->callback);
     }
 }

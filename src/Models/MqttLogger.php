@@ -8,20 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class MqttLogger extends Model
 {
-    use HasFactory;
     use ExternalId;
-
-    public function __construct()
-    {
-        $dbConnection = config('mqtt-broadcast.logs.connection');
-        if ($dbConnection) {
-            $this->connection = $dbConnection;
-        }
-
-        $this->table = config('mqtt-broadcast.logs.table');
-
-        parent::__construct();
-    }
+    use HasFactory;
 
     protected $fillable = [
         'broker',
@@ -34,4 +22,16 @@ class MqttLogger extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    public function __construct()
+    {
+        $dbConnection = config('mqtt-broadcast.logs.connection');
+        if ($dbConnection) {
+            $this->connection = $dbConnection;
+        }
+
+        $this->table = config('mqtt-broadcast.logs.table');
+
+        parent::__construct();
+    }
 }

@@ -28,7 +28,7 @@ class MqttBroadcastCommand extends Command
         $mqtt = new MqttClient($server, $port, $clientId);
         $mqtt->connect();
 
-        $this->info("MQTT Broadcast started listener `$broker` successfully at: " . now()->toIso8601String());
+        $this->info("MQTT Broadcast started listener `$broker` successfully at: ".now()->toIso8601String());
 
         $mqtt->subscribe('#', function ($topic, $message) use ($broker) {
             $this->comment(sprintf('Received message on topic [%s]: %s', $topic, $message));
@@ -46,11 +46,11 @@ class MqttBroadcastCommand extends Command
         }, 0);
 
         pcntl_async_signals(true);
-        pcntl_signal(SIGINT, function () use ($mqtt) {
+        pcntl_signal(SIGINT, function () {
             $this->line('Shutting down...');
 
-            if (!posix_kill($this->pid(), SIGTERM)) {
-                $this->error("Failed to kill process: {$this->pid()} (" . posix_strerror(posix_get_last_error()) . ')');
+            if (! posix_kill($this->pid(), SIGTERM)) {
+                $this->error("Failed to kill process: {$this->pid()} (".posix_strerror(posix_get_last_error()).')');
             }
         });
 

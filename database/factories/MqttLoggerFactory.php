@@ -18,4 +18,3 @@ class MqttLoggerFactory extends Factory
         ];
     }
 }
-

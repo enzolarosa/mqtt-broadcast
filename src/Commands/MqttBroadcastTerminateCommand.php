@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 class MqttBroadcastTerminateCommand extends Command
 {
     public $signature = 'mqtt-broadcast:terminate {broker}';
+
     protected $description = 'Terminate the master supervisor so it can be restarted';
 
     public function handle()
@@ -16,8 +17,8 @@ class MqttBroadcastTerminateCommand extends Command
 
         $processId = Cache::get("mqtt_listener_$broker");
 
-        if (!posix_kill($processId, SIGTERM)) {
-            $this->error("Failed to kill process: {$processId} (" . posix_strerror(posix_get_last_error()) . ')');
+        if (! posix_kill($processId, SIGTERM)) {
+            $this->error("Failed to kill process: {$processId} (".posix_strerror(posix_get_last_error()).')');
         }
     }
 }

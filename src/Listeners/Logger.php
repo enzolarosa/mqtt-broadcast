@@ -10,12 +10,16 @@ use Illuminate\Queue\SerializesModels;
 
 class Logger implements ShouldQueue
 {
-    use Queueable;
-    use SerializesModels;
+    use Queueable, SerializesModels;
+
+    public function __construct()
+    {
+        $this->onQueue(config('mqtt-broadcast.logs.queue'));
+    }
 
     public function handle(MqttMessageReceived $event): void
     {
-        if (!config('mqtt-broadcast.logs.enable')) {
+        if (! config('mqtt-broadcast.logs.enable')) {
             return;
         }
 

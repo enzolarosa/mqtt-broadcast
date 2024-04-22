@@ -10,20 +10,12 @@ class MqttMessageReceived
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    protected string $topic;
-
-    protected string $message;
-
-    protected string $broker;
-
-    protected int $pid;
-
-    public function __construct(string $topic, string $message, string $broker = 'local', int $pid = null)
+    public function __construct(
+        protected string $topic,
+        protected string $message,
+        protected string $broker = 'local',
+        protected ?int $pid = null)
     {
-        $this->topic = $topic;
-        $this->message = $message;
-        $this->broker = $broker;
-        $this->pid = $pid;
     }
 
     public function getTopic(): string
