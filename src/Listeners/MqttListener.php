@@ -6,16 +6,21 @@ use enzolarosa\MqttBroadcast\Events\MqttMessageReceived;
 use enzolarosa\MqttBroadcast\Listeners\Interfaces\Listener as ListenerInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
 abstract class MqttListener implements ListenerInterface, ShouldQueue
 {
-    use Queueable;
-    use SerializesModels;
+    use Queueable, SerializesModels, InteractsWithQueue;
 
     protected string $handleBroker = 'local';
 
     protected string $topic = '*';
+
+    public function viaQueue(): string
+    {
+        return config('mqtt-broadcast.queue.listener');
+    }
 
     abstract public function processMessage(string $topic, object $obj);
 
@@ -32,7 +37,7 @@ abstract class MqttListener implements ListenerInterface, ShouldQueue
             return;
         }
 
-        if (! $this->preProcessMessage()) {
+        if (!$this->preProcessMessage()) {
             return;
         }
 

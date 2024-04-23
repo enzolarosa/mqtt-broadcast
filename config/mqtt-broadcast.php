@@ -12,6 +12,7 @@ return [
 
     'queue' => [
         'name' => env('MQTT_JOB_QUEUE', 'default'),
+        'listener' => env('MQTT_LISTENER_QUEUE', 'default'),
         'connection' => env('MQTT_JOB_CONNECTION', 'redis'),
         'middleware' => env('MQTT_JOB_MIDDLEWARE'),
     ],
