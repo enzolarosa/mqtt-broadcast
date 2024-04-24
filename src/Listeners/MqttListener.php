@@ -19,7 +19,7 @@ abstract class MqttListener implements ListenerInterface, ShouldQueue
 
     public function viaQueue(): string
     {
-        return config('mqtt-broadcast.queue.listener');
+        return config('mqtt-broadcast.queue.listener', 'default');
     }
 
     abstract public function processMessage(string $topic, object $obj);
