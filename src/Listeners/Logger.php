@@ -3,7 +3,6 @@
 namespace enzolarosa\MqttBroadcast\Listeners;
 
 use enzolarosa\MqttBroadcast\Events\MqttMessageReceived;
-use enzolarosa\MqttBroadcast\Listeners\Interfaces\Listener;
 use enzolarosa\MqttBroadcast\Models\MqttLogger;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,11 +11,11 @@ use Illuminate\Queue\SerializesModels;
 
 class Logger implements ShouldQueue
 {
-    use Queueable, SerializesModels,InteractsWithQueue;
+    use InteractsWithQueue, Queueable, SerializesModels;
 
     public function viaQueue(): string
     {
-        return config('mqtt-broadcast.logs.queue');
+        return config('mqtt-broadcast.queue.listener', 'default');
     }
 
     public function handle(MqttMessageReceived $event): void

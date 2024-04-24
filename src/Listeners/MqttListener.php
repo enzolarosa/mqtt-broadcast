@@ -11,18 +11,18 @@ use Illuminate\Queue\SerializesModels;
 
 abstract class MqttListener implements ListenerInterface, ShouldQueue
 {
-    use Queueable, SerializesModels, InteractsWithQueue;
+    use InteractsWithQueue, Queueable, SerializesModels;
 
     protected string $handleBroker = 'local';
 
     protected string $topic = '*';
 
+    abstract public function processMessage(string $topic, object $obj);
+
     public function viaQueue(): string
     {
         return config('mqtt-broadcast.queue.listener', 'default');
     }
-
-    abstract public function processMessage(string $topic, object $obj);
 
     public function handle(MqttMessageReceived $event)
     {
@@ -37,7 +37,7 @@ abstract class MqttListener implements ListenerInterface, ShouldQueue
             return;
         }
 
-        if (!$this->preProcessMessage()) {
+        if (! $this->preProcessMessage()) {
             return;
         }
 

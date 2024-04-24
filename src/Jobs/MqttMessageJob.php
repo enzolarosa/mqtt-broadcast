@@ -21,14 +21,14 @@ class MqttMessageJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
-        protected string  $topic,
-        protected         $message,
+        protected string $topic,
+        protected $message,
         protected ?string $broker = 'local',
-        protected int     $qos = 0)
+        protected int $qos = 0)
     {
         $queue = config('mqtt-broadcast.queue.name');
         $connection = config('mqtt-broadcast.queue.connection');
-        $this->qos = config('mqtt-broadcast.connections.' . $this->broker . '.qos', 0);
+        $this->qos = config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
 
         if ($queue) {
             $this->onQueue($queue);
@@ -64,7 +64,7 @@ class MqttMessageJob implements ShouldQueue
         $server = config("mqtt-broadcast.connections.$this->broker.host");
         $port = config("mqtt-broadcast.connections.$this->broker.port");
 
-        if (!is_string($this->message)) {
+        if (! is_string($this->message)) {
             $this->message = json_encode($this->message);
         }
 
