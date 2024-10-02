@@ -24,6 +24,7 @@ return [
             'user' => env('MQTT_USER'),
             'password' => env('MQTT_PASSWORD'),
             'qos' => env('MQTT_QOS'),
+            'prefix' => env('MQTT_PREFIX', ''),
         ],
 
         //        'remote' => [

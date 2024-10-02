@@ -24,6 +24,12 @@ abstract class MqttListener implements ListenerInterface, ShouldQueue
         return config('mqtt-broadcast.queue.listener', 'default');
     }
 
+    protected function getTopic(): string
+    {
+        $prefix = config("mqtt-broadcast.connections.{$this->handleBroker}.prefix", '');
+        return $prefix . $this->topic;
+    }
+
     public function handle(MqttMessageReceived $event)
     {
         $broker = $event->getBroker();
@@ -33,11 +39,11 @@ abstract class MqttListener implements ListenerInterface, ShouldQueue
             return;
         }
 
-        if ($topic != $this->topic && $this->topic != '*') {
+        if ($topic != $this->getTopic() && $this->getTopic() != '*') {
             return;
         }
 
-        if (! $this->preProcessMessage()) {
+        if (!$this->preProcessMessage()) {
             return;
         }
 
