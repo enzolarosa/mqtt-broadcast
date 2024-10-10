@@ -24,7 +24,7 @@ class MqttMessageJob implements ShouldQueue
         protected string $topic,
         protected $message,
         protected ?string $broker = 'local',
-        protected int $qos = 0)
+        protected ?int $qos = 0)
     {
         $queue = config('mqtt-broadcast.queue.name');
         $connection = config('mqtt-broadcast.queue.connection');
