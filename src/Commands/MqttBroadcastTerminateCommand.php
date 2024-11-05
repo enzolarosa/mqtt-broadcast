@@ -9,7 +9,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Symfony\Component\Console\Attribute\AsCommand;
 
-#[AsCommand(name: 'mqtt-broadcast:terminate')]
+#[AsCommand(name: 'mqtt-broadcast:terminate', description: 'Terminate the master supervisor so it can be restarted')]
 class MqttBroadcastTerminateCommand extends Command
 {
     public $signature = 'mqtt-broadcast:terminate';

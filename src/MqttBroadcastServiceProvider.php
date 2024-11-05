@@ -7,7 +7,7 @@ use Illuminate\Support\ServiceProvider;
 
 class MqttBroadcastServiceProvider extends ServiceProvider
 {
-    use EventMap,ServiceBindings;
+    use EventMap, ServiceBindings;
 
     public function boot()
     {
@@ -71,8 +71,10 @@ class MqttBroadcastServiceProvider extends ServiceProvider
     protected function configure()
     {
         $this->mergeConfigFrom(
-            __DIR__.'/../config/mqtt-broadcast.php', 'mqtt-broadcast'
+            __DIR__.'/../config/mqtt-broadcast.php', 'mqtt-broadcast',
         );
+
+        MqttBroadcast::use(config('mqtt-broadcast.use', 'default'));
     }
 
     protected function registerServices()

@@ -70,7 +70,7 @@ class RedisMqttSupervisorRepository implements MqttSupervisorRepository
     {
         $records = $this->connection()->pipeline(function ($pipe) use ($names) {
             foreach ($names as $name) {
-                $pipe->hmget('mqtt:'.$name, ['name', 'pid', 'status', 'supervisors', 'environment']);
+                $pipe->hmget('mqtt:'.$name, ['name', 'pid', 'status', 'supervisors']);
             }
         });
 
@@ -79,7 +79,6 @@ class RedisMqttSupervisorRepository implements MqttSupervisorRepository
 
             return ! $record[0] ? null : (object) [
                 'name' => $record[0],
-                'environment' => $record[4],
                 'pid' => $record[1],
                 'status' => $record[2],
                 'supervisors' => json_decode($record[3], true),
@@ -100,7 +99,6 @@ class RedisMqttSupervisorRepository implements MqttSupervisorRepository
             $pipe->hmset(
                 'mqtt:'.$supervisor->name, [
                     'name' => $supervisor->name,
-                    'environment' => $supervisor->environment,
                     'pid' => $supervisor->pid(),
                     'status' => $supervisor->working ? 'running' : 'paused',
                     'supervisors' => json_encode($supervisors),
@@ -155,6 +153,6 @@ class RedisMqttSupervisorRepository implements MqttSupervisorRepository
      */
     protected function connection()
     {
-        return $this->redis->connection('horizon');
+        return $this->redis->connection('mqtt-broadcast');
     }
 }

@@ -11,7 +11,7 @@ use PhpMqtt\Client\MqttClient;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Throwable;
 
-#[AsCommand(name: 'mqtt-broadcast')]
+#[AsCommand(name: 'mqtt-broadcast', description: 'Mqtt Broadcast Command')]
 class MqttBroadcastCommand extends Command
 {
     public $signature = 'mqtt-broadcast {broker}';
@@ -24,48 +24,48 @@ class MqttBroadcastCommand extends Command
             return $this->components->warn('A master supervisor is already running on this machine.');
         }
 
-        $clientId = Str::uuid()->toString();
-
         $broker = $this->argument('broker');
 
         $master = (new MqttSupervisor($broker))->handleOutputUsing(function ($type, $line) {
             $this->output->write($line);
         });
 
+        $this->components->info(sprintf('Mqtt Broadcast for %s broker started successfully.', $broker));
+
+        $clientId = Str::uuid()->toString();
         $server = config("mqtt-broadcast.connections.$broker.host");
         $port = config("mqtt-broadcast.connections.$broker.port");
 
         $mqtt = new MqttClient($server, $port, $clientId);
         $mqtt->connect();
 
-        $mqtt->subscribe('#', function ($topic, $message) use ($broker) {
-            $this->output->writeln('');
-            $this->components->info(sprintf('Received message on topic [%s]: %s', $topic, $message));
-            try {
-                MqttMessageReceived::dispatch(
-                    $topic,
-                    $message,
-                    $broker
-                );
-            } catch (Throwable $exception) {
-                report($exception);
-                $this->components->error("\t{$exception->getMessage()}");
-            }
-        }, 0);
-
-        $this->components->info('Horizon started successfully.');
-
         pcntl_async_signals(true);
-
-        pcntl_signal(SIGINT, function () use ($master) {
+        pcntl_signal(SIGINT, function () use ($master, $mqtt) {
             $this->output->writeln('');
 
             $this->components->info('Shutting down.');
 
+            $mqtt->disconnect();
+
             return $master->terminate();
         });
 
-        $mqtt->loop();
-        $mqtt->disconnect();
+        $master->monitor(function () use ($broker, $mqtt) {
+            $mqtt->subscribe('#', function ($topic, $message) use ($broker) {
+                $this->output->writeln(sprintf('Received message on topic [%s]: %s', $topic, $message));
+                try {
+                    MqttMessageReceived::dispatch(
+                        $topic,
+                        $message,
+                        $broker,
+                    );
+                } catch (Throwable $exception) {
+                    report($exception);
+                    $this->components->error("\t{$exception->getMessage()}");
+                }
+            }, 0);
+
+            $mqtt->loop();
+        });
     }
 }

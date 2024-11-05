@@ -8,39 +8,29 @@ use enzolarosa\MqttBroadcast\Contracts\MqttSupervisorRepository;
 use enzolarosa\MqttBroadcast\Contracts\Pausable;
 use enzolarosa\MqttBroadcast\Contracts\Restartable;
 use enzolarosa\MqttBroadcast\Contracts\Terminable;
+use Exception;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Support\Str;
+use Throwable;
 
 class MqttSupervisor implements Pausable, Restartable, Terminable
 {
     use ListensForSignals;
 
     /**
-     * The environment that was used to provision this master supervisor.
-     *
-     * @var string|null
-     */
-    public $environment;
-
-    /**
      * The name of the master supervisor.
-     *
-     * @var string
      */
-    public $name;
+    public string $name;
 
     /**
      * All of the supervisors managed.
-     *
-     * @var \Illuminate\Support\Collection
      */
-    public $supervisors;
+    public \Illuminate\Support\Collection $supervisors;
 
     /**
      * Indicates if the master supervisor process is working.
-     *
-     * @var bool
      */
-    public $working = true;
+    public bool $working = true;
 
     /**
      * The output handler.
@@ -56,10 +46,8 @@ class MqttSupervisor implements Pausable, Restartable, Terminable
      */
     public static $nameResolver;
 
-    public function __construct(?string $environment = null)
+    public function __construct()
     {
-        $this->environment = $environment;
-
         $this->name = static::name();
         $this->supervisors = collect();
 
@@ -104,27 +92,6 @@ class MqttSupervisor implements Pausable, Restartable, Terminable
     public static function determineNameUsing(Closure $callback)
     {
         static::$nameResolver = $callback;
-    }
-
-    /**
-     * Get the name of the command queue for the master supervisor.
-     *
-     * @return string
-     */
-    public static function commandQueue()
-    {
-        return 'master:'.static::name();
-    }
-
-    /**
-     * Get the name of the command queue for the given master supervisor.
-     *
-     * @param  string|null  $name
-     * @return string
-     */
-    public static function commandQueueFor($name = null)
-    {
-        return $name ? 'master:'.$name : static::commandQueue();
     }
 
     /**
@@ -194,6 +161,58 @@ class MqttSupervisor implements Pausable, Restartable, Terminable
         $this->exit($status);
     }
 
+    public function monitor(Closure $callback)
+    {
+        $this->ensureNoOtherMasterSupervisors();
+
+        $this->listenForSignals();
+
+        $this->persist();
+
+        while (true) {
+            sleep(1);
+
+            $this->loop($callback);
+        }
+    }
+
+    public function persist()
+    {
+        app(MqttSupervisorRepository::class)->update($this);
+    }
+
+    public function loop(Closure $callback)
+    {
+        try {
+            $this->processPendingSignals();
+
+            call_user_func($callback);
+
+            if ($this->working) {
+                $this->monitorSupervisors();
+            }
+
+            $this->persist();
+
+        } catch (Throwable $e) {
+            app(ExceptionHandler::class)->report($e);
+        }
+    }
+
+    /**
+     * Ensure that this is the only master supervisor running for this machine.
+     *
+     * @return void
+     *
+     * @throws Exception
+     */
+    public function ensureNoOtherMasterSupervisors()
+    {
+        if (app(MqttSupervisorRepository::class)->find($this->name) !== null) {
+            throw new Exception('A master supervisor is already running on this machine.');
+        }
+    }
+
     /**
      * Get the process ID for this supervisor.
      *
@@ -236,6 +255,18 @@ class MqttSupervisor implements Pausable, Restartable, Terminable
     public function output($type, $line)
     {
         call_user_func($this->output, $type, $line);
+    }
+
+    /**
+     * "Monitor" all the supervisors.
+     *
+     * @return void
+     */
+    protected function monitorSupervisors()
+    {
+        $this->supervisors->each->monitor();
+
+        $this->supervisors = $this->supervisors->reject->dead;
     }
 
     /**

@@ -10,6 +10,9 @@ trait ServiceBindings
      * @var array
      */
     public $serviceBindings = [
+        // General services...
+        Lock::class,
+
         // Repository services...
         Contracts\MqttSupervisorRepository::class => Repositories\RedisMqttSupervisorRepository::class,
     ];
