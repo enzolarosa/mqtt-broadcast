@@ -32,6 +32,8 @@ return [
         //            'port' => env('MQTT_REMOTE_PORT', '1883'),
         //            'user' => env('MQTT_REMOTE_USER'),
         //            'password' => env('MQTT_REMOTE_PASSWORD'),
+        //            'qos' => env('MQTT_REMOTE_QOS'),
+        //            'prefix' => env('MQTT_REMOTE_PREFIX', ''),
         //        ],
     ],
 ];

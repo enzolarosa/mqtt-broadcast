@@ -22,7 +22,6 @@
         "ext-pcntl": "*",
         "illuminate/contracts": "^9.0|^10.0|^11.0",
         "php-mqtt/client": "^2.0.0",
-        "spatie/laravel-package-tools": "^1.16.1",
         "ext-posix": "*"
     },
     "require-dev": {

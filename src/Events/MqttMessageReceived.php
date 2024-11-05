@@ -3,10 +3,11 @@
 namespace enzolarosa\MqttBroadcast\Events;
 
 use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class MqttMessageReceived
+class MqttMessageReceived implements ShouldQueue
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -14,9 +15,7 @@ class MqttMessageReceived
         protected string $topic,
         protected string $message,
         protected string $broker = 'local',
-        protected ?int $pid = null)
-    {
-    }
+        protected ?int $pid = null) {}
 
     public function getTopic(): string
     {
