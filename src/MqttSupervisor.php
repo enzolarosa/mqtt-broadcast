@@ -2,6 +2,9 @@
 
 namespace enzolarosa\MqttBroadcast;
 
+use Carbon\CarbonImmutable;
+use Closure;
+use enzolarosa\MqttBroadcast\Contracts\MqttSupervisorRepository;
 use enzolarosa\MqttBroadcast\Contracts\Pausable;
 use enzolarosa\MqttBroadcast\Contracts\Restartable;
 use enzolarosa\MqttBroadcast\Contracts\Terminable;
@@ -42,14 +45,14 @@ class MqttSupervisor implements Pausable, Restartable, Terminable
     /**
      * The output handler.
      *
-     * @var \Closure|null
+     * @var Closure|null
      */
     public $output;
 
     /**
      * The callback to use to resolve master supervisor names.
      *
-     * @var \Closure|null
+     * @var Closure|null
      */
     public static $nameResolver;
 
@@ -96,7 +99,6 @@ class MqttSupervisor implements Pausable, Restartable, Terminable
     /**
      * Use the given callback to resolve master supervisor names.
      *
-     * @param  \Closure  $callback
      * @return void
      */
     public static function determineNameUsing(Closure $callback)
@@ -161,6 +163,37 @@ class MqttSupervisor implements Pausable, Restartable, Terminable
         $this->supervisors->each->continue();
     }
 
+    public function terminate($status = 0)
+    {
+        $this->working = false;
+
+        $longest = config('mqtt-broadcast.longest_wait_time', 60);
+
+        $this->supervisors->each->terminate();
+
+        // We will go ahead and remove this master supervisor's record from storage so
+        // another master supervisor could get started in its place without waiting
+        // for it to really finish terminating all of its underlying supervisors.
+        app(MqttSupervisorRepository::class)
+            ->forget($this->name);
+
+        $startedTerminating = CarbonImmutable::now();
+
+        // Here we will wait until all the child supervisors finish terminating and
+        // then exit the process. We will keep track of a timeout value so that the
+        // process does not get stuck in an infinite loop here waiting for these.
+        while (count($this->supervisors->filter->isRunning())) {
+            if (CarbonImmutable::now()->subSeconds($longest)
+                ->gte($startedTerminating)) {
+                break;
+            }
+
+            sleep(1);
+        }
+
+        $this->exit($status);
+    }
+
     /**
      * Get the process ID for this supervisor.
      *
@@ -184,7 +217,6 @@ class MqttSupervisor implements Pausable, Restartable, Terminable
     /**
      * Set the output handler.
      *
-     * @param  \Closure  $callback
      * @return $this
      */
     public function handleOutputUsing(Closure $callback)
