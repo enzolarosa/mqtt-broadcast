@@ -63,7 +63,6 @@ class MqttBroadcastServiceProvider extends ServiceProvider
                 Commands\MqttBroadcastCommand::class,
                 Commands\MqttBroadcastTerminateCommand::class,
                 Commands\MqttBroadcastTestCommand::class,
-                Commands\MqttBroadcastInstallCommand::class,
             ]);
         }
     }
@@ -73,8 +72,6 @@ class MqttBroadcastServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(
             __DIR__.'/../config/mqtt-broadcast.php', 'mqtt-broadcast',
         );
-
-        MqttBroadcast::use(config('mqtt-broadcast.use', 'default'));
     }
 
     protected function registerServices()

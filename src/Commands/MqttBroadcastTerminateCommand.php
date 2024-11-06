@@ -2,8 +2,7 @@
 
 namespace enzolarosa\MqttBroadcast\Commands;
 
-use enzolarosa\MqttBroadcast\Contracts\MqttSupervisorRepository;
-use enzolarosa\MqttBroadcast\MqttSupervisor;
+use enzolarosa\MqttBroadcast\Brokers;
 use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -16,19 +15,21 @@ class MqttBroadcastTerminateCommand extends Command
 
     protected $description = 'Terminate the master supervisor so it can be restarted';
 
-    public function handle(MqttSupervisorRepository $supervisor)
+    public function handle(Brokers $brokers)
     {
-        $mqtts = collect($supervisor->all())->filter(function ($master) {
-            return Str::startsWith($master->name, MqttSupervisor::basename());
+        $listeners = collect($brokers->all())->filter(function ($master) {
+            return Str::startsWith($master->name, Brokers::basename());
         })->all();
 
-        collect(Arr::pluck($mqtts, 'pid'))
+        collect(Arr::pluck($listeners, 'pid'))
             ->whenNotEmpty(fn () => $this->components->info('Sending TERM signal to processes.'))
             ->whenEmpty(fn () => $this->components->info('No processes to terminate.'))
             ->each(function ($processId) {
                 $result = true;
 
                 $this->components->task("Process: $processId", function () use ($processId, &$result) {
+                    Brokers::terminateByPid($processId);
+
                     return $result = posix_kill($processId, SIGTERM);
                 });
 

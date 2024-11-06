@@ -1,6 +1,6 @@
 <?php
 
-namespace enzolarosa\MqttBroadcast\Listeners\Interfaces;
+namespace enzolarosa\MqttBroadcast\Contracts;
 
 use enzolarosa\MqttBroadcast\Events\MqttMessageReceived;
 

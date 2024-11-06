@@ -2,6 +2,8 @@
 
 namespace enzolarosa\MqttBroadcast;
 
+use enzolarosa\MqttBroadcast\Models\Brokers;
+
 trait ServiceBindings
 {
     /**
@@ -11,9 +13,7 @@ trait ServiceBindings
      */
     public $serviceBindings = [
         // General services...
-        Lock::class,
+        Brokers::class,
 
-        // Repository services...
-        Contracts\MqttSupervisorRepository::class => Repositories\RedisMqttSupervisorRepository::class,
     ];
 }

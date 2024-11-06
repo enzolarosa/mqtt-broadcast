@@ -2,8 +2,9 @@
 
 namespace enzolarosa\MqttBroadcast\Listeners;
 
+use enzolarosa\MqttBroadcast\Contracts\Listener as ListenerInterface;
 use enzolarosa\MqttBroadcast\Events\MqttMessageReceived;
-use enzolarosa\MqttBroadcast\Listeners\Interfaces\Listener as ListenerInterface;
+use enzolarosa\MqttBroadcast\MqttBroadcast;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
@@ -53,8 +54,6 @@ abstract class MqttListener implements ListenerInterface, ShouldQueue
 
     protected function getTopic(): string
     {
-        $prefix = config("mqtt-broadcast.connections.{$this->handleBroker}.prefix", '');
-
-        return $prefix.$this->topic;
+        return MqttBroadcast::getTopic($this->topic, $this->handleBroker);
     }
 }

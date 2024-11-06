@@ -28,8 +28,6 @@ class Logger implements ShouldQueue
         $topic = $event->getTopic();
         $message = json_decode($event->getMessage());
 
-        $obj = json_decode($event->getMessage());
-
         MqttLogger::query()->create([
             'topic' => $topic,
             'message' => $message,

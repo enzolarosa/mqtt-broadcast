@@ -9,7 +9,7 @@ return new class extends Migration
     public function up()
     {
         Schema::connection(config('mqtt-broadcast.logs.connection'))
-            ->create(config('mqtt-broadcast.logs.table'), function (Blueprint $table) {
+            ->create('mqtt_loggers', function (Blueprint $table) {
                 $table->id();
                 $table->uuid('external_id')->unique();
 

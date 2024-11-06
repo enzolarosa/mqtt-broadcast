@@ -2,7 +2,7 @@
 
 namespace enzolarosa\MqttBroadcast\Commands;
 
-use enzolarosa\MqttBroadcast\Jobs\MqttMessageJob;
+use enzolarosa\MqttBroadcast\MqttBroadcast;
 use Illuminate\Console\Command;
 use Symfony\Component\Console\Attribute\AsCommand;
 
@@ -19,10 +19,9 @@ class MqttBroadcastTestCommand extends Command
         $topic = $this->argument('topic');
         $message = $this->argument('message');
 
-        $this->components->info("I will send `$message` to `$topic` topic to`$broker` connection");
-
-        MqttMessageJob::dispatch($topic, $message, $broker);
-
-        $this->components->success('Done!');
+        $this->components->task("Sending a message to $broker broker",
+            function () use ($broker, $topic, $message) {
+                return MqttBroadcast::publishSync($topic, $message, $broker);
+            });
     }
 }

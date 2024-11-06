@@ -2,11 +2,11 @@
 
 namespace enzolarosa\MqttBroadcast\Jobs;
 
+use enzolarosa\MqttBroadcast\MqttBroadcast;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
 use PhpMqtt\Client\Exceptions\ConfigurationInvalidException;
@@ -23,9 +23,9 @@ class MqttMessageJob implements ShouldQueue
     public function __construct(
         protected string $topic,
         protected $message,
-        protected ?string $broker = 'local',
-        protected ?int $qos = 0)
-    {
+        protected ?string $broker = 'default',
+        protected ?int $qos = 0,
+    ) {
         $queue = config('mqtt-broadcast.queue.name');
         $connection = config('mqtt-broadcast.queue.connection');
         $this->qos = config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
@@ -36,16 +36,6 @@ class MqttMessageJob implements ShouldQueue
         if ($connection) {
             $this->onConnection($connection);
         }
-    }
-
-    public function middleware()
-    {
-        $middleware = [];
-        if (config('mqtt-broadcast.queue.middleware')) {
-            $middleware = [(new RateLimited(config('mqtt-broadcast.queue.middleware')))];
-        }
-
-        return $middleware;
     }
 
     /**
@@ -70,7 +60,11 @@ class MqttMessageJob implements ShouldQueue
 
         $mqtt = new MqttClient($server, $port, Str::uuid()->toString());
         $mqtt->connect();
-        $mqtt->publish($this->topic, $this->message, $this->qos);
+        $mqtt->publish(
+            MqttBroadcast::getTopic($this->topic, $this->broker),
+            $this->message,
+            $this->qos,
+        );
         $mqtt->disconnect();
     }
 }
