@@ -6,6 +6,7 @@ use Closure;
 use enzolarosa\MqttBroadcast\Contracts\Terminable;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Support\Str;
+use PhpMqtt\Client\ConnectionSettings;
 use PhpMqtt\Client\MqttClient;
 use Throwable;
 
@@ -21,7 +22,7 @@ class Brokers implements Terminable
     /**
      * The output handler.
      *
-     * @var \Closure|null
+     * @var Closure|null
      */
     public $output;
 
@@ -84,8 +85,31 @@ class Brokers implements Terminable
 
         $server = config("mqtt-broadcast.connections.$connection.host");
         $port = config("mqtt-broadcast.connections.$connection.port");
+        $authentication = config("mqtt-broadcast.connections.$connection.auth", false);
 
-        return new MqttClient($server, $port, $clientId);
+        $mqtt = new MqttClient($server, $port, $clientId);
+
+        if ($authentication) {
+            $username = config("mqtt-broadcast.connections.$connection.username");
+            $password = config("mqtt-broadcast.connections.$connection.password");
+            $clean_session = config("mqtt-broadcast.connections.$connection.clean_session", false);
+            $keepAliveInterval = config("mqtt-broadcast.connections.$connection.alive_interval", 60);
+            $connectionTimeout = config("mqtt-broadcast.connections.$connection.timeout", 3);
+            $useTls = config("mqtt-broadcast.connections.$connection.use_tls", true);
+            $selfSignedAllowed = config("mqtt-broadcast.connections.$connection.self_aligned_allowed", true);
+
+            $connectionSettings = (new ConnectionSettings)
+                ->setKeepAliveInterval($keepAliveInterval)
+                ->setConnectTimeout($connectionTimeout)
+                ->setUseTls($useTls)
+                ->setTlsSelfSignedAllowed($selfSignedAllowed)
+                ->setUsername($username)
+                ->setPassword($password);
+
+            $mqtt->connect($connectionSettings, $clean_session);
+        }
+
+        return $mqtt;
     }
 
     public function terminate($status = 0)
@@ -102,7 +126,11 @@ class Brokers implements Terminable
         $this->persist();
 
         $client = $this->client($this->broker->name);
-        $client->connect();
+
+        if (!$client->isConnected()) {
+            $client->connect();
+        }
+
         $client->subscribe('#', function ($topic, $message) {
             $this->output('info', sprintf('Received message on topic [%s]: %s', $topic, $message));
 
