@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 return [
     'logs' => [
         'enable' => env('MQTT_LOG_ENABLE', false),

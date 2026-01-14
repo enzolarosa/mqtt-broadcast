@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace enzolarosa\MqttBroadcast\Commands;
 
 use enzolarosa\MqttBroadcast\Brokers;
@@ -17,9 +19,7 @@ class MqttBroadcastTerminateCommand extends Command
 
     public function handle(Brokers $brokers)
     {
-        $listeners = collect($brokers->all())->filter(function ($master) {
-            return Str::startsWith($master->name, Brokers::basename());
-        })->all();
+        $listeners = collect($brokers->all())->filter(fn($master) => Str::startsWith($master->name, Brokers::basename()))->all();
 
         collect(Arr::pluck($listeners, 'pid'))
             ->whenNotEmpty(fn () => $this->components->info('Sending TERM signal to processes.'))

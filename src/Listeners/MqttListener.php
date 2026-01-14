@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace enzolarosa\MqttBroadcast\Listeners;
 
 use enzolarosa\MqttBroadcast\Contracts\Listener as ListenerInterface;
@@ -30,11 +32,11 @@ abstract class MqttListener implements ListenerInterface, ShouldQueue
         $broker = $event->getBroker();
         $topic = $event->getTopic();
 
-        if ($broker != $this->handleBroker) {
+        if ($broker !== $this->handleBroker) {
             return;
         }
 
-        if ($topic != $this->getTopic() && $this->getTopic() != '*') {
+        if ($topic !== $this->getTopic() && $this->getTopic() !== '*') {
             return;
         }
 

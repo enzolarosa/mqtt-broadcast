@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace enzolarosa\MqttBroadcast\Listeners;
 
 use enzolarosa\MqttBroadcast\Events\MqttMessageReceived;

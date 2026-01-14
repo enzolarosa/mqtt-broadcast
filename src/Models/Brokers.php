@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace enzolarosa\MqttBroadcast\Models;
 
 use Illuminate\Database\Eloquent\Model;

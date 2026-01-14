@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace enzolarosa\MqttBroadcast;
 
 use Closure;
@@ -35,7 +37,7 @@ class Brokers implements Terminable
     {
         static $token;
 
-        if (!$token) {
+        if (! $token) {
             $token = Str::random(4);
         }
 
@@ -57,7 +59,7 @@ class Brokers implements Terminable
         $this->broker = Models\Brokers::query()->create([
             'name' => static::name(),
             'connection' => $connection,
-            'pid' => Brokers::pid(),
+            'pid' => self::pid(),
             'started_at' => now(),
             'working' => true,
         ]);
@@ -79,11 +81,10 @@ class Brokers implements Terminable
     {
         $broker = $this->find($name);
 
-        $clientId = Str::uuid()->toString();
-
         $connection = $broker->connection;
 
         $server = config("mqtt-broadcast.connections.$connection.host");
+        $clientId = config("mqtt-broadcast.connections.$connection.clientId", Str::uuid()->toString());
         $port = config("mqtt-broadcast.connections.$connection.port");
         $authentication = config("mqtt-broadcast.connections.$connection.auth", false);
 
@@ -127,7 +128,7 @@ class Brokers implements Terminable
 
         $client = $this->client($this->broker->name);
 
-        if (!$client->isConnected()) {
+        if (! $client->isConnected()) {
             $client->connect();
         }
 
@@ -169,20 +170,9 @@ class Brokers implements Terminable
         $this->broker->touch('started_at');
     }
 
-    protected function exit($status = 0)
-    {
-        $this->exitProcess($status);
-    }
-
-    protected function exitProcess($status = 0)
-    {
-        exit((int) $status);
-    }
-
     /**
      * Set the output handler.
      *
-     * @param  Closure  $callback
      * @return $this
      */
     public function handleOutputUsing(Closure $callback)
@@ -195,5 +185,15 @@ class Brokers implements Terminable
     public function output($type, $line)
     {
         call_user_func($this->output, $type, $line);
+    }
+
+    protected function exit($status = 0)
+    {
+        $this->exitProcess($status);
+    }
+
+    protected function exitProcess($status = 0): never
+    {
+        exit((int) $status);
     }
 }

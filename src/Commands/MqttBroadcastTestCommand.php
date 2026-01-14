@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace enzolarosa\MqttBroadcast\Commands;
 
 use enzolarosa\MqttBroadcast\MqttBroadcast;
@@ -20,8 +22,6 @@ class MqttBroadcastTestCommand extends Command
         $message = $this->argument('message');
 
         $this->components->task("Sending a message to $broker broker",
-            function () use ($broker, $topic, $message) {
-                return MqttBroadcast::publishSync($topic, $message, $broker);
-            });
+            fn() => MqttBroadcast::publishSync($topic, $message, $broker));
     }
 }

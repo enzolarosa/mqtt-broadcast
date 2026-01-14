@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace enzolarosa\MqttBroadcast\Database\Factories;
 
 use enzolarosa\MqttBroadcast\Models\MqttLogger;

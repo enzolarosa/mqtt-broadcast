@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use enzolarosa\MqttBroadcast\MqttBroadcast;
 
 if (! function_exists('mqttMessage')) {
