@@ -135,6 +135,7 @@ class Brokers implements Terminable
 
         $connection = $this->broker->connection;
         $prefix = config("mqtt-broadcast.connections.$connection.prefix", '');
+        $qos = config("mqtt-broadcast.connections.$connection.qos", 0);
 
         $client->subscribe($prefix.'#', function ($topic, $message) {
             $this->output('info', sprintf('Received message on topic [%s]: %s', $topic, $message));
@@ -145,7 +146,7 @@ class Brokers implements Terminable
                 report($exception);
                 $this->output('error', $exception->getMessage());
             }
-        });
+        },$qos);
 
         while (true) {
             sleep(1);
