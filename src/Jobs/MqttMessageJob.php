@@ -53,20 +53,22 @@ class MqttMessageJob implements ShouldQueue
     {
         $mqtt = $this->mqtt();
 
-        if (! $mqtt->isConnected()) {
+        if (!$mqtt->isConnected()) {
             $mqtt->connect();
         }
 
-        if (! is_string($this->message)) {
+        if (!is_string($this->message)) {
             $this->message = json_encode($this->message);
         }
 
         $qos = config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
+        $retain = config('mqtt-broadcast.connections.'.$this->broker.'.retain', false);
 
         $mqtt->publish(
             MqttBroadcast::getTopic($this->topic, $this->broker),
             $this->message,
             $qos,
+            $retain,
         );
 
         $mqtt->disconnect();
