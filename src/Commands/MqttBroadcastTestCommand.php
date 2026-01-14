@@ -22,6 +22,6 @@ class MqttBroadcastTestCommand extends Command
         $message = $this->argument('message');
 
         $this->components->task("Sending a message to $broker broker",
-            fn() => MqttBroadcast::publishSync($topic, $message, $broker));
+            fn () => MqttBroadcast::publishSync($topic, $message, $broker));
     }
 }

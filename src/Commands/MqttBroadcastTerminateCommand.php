@@ -19,7 +19,7 @@ class MqttBroadcastTerminateCommand extends Command
 
     public function handle(Brokers $brokers)
     {
-        $listeners = collect($brokers->all())->filter(fn($master) => Str::startsWith($master->name, Brokers::basename()))->all();
+        $listeners = collect($brokers->all())->filter(fn ($master) => Str::startsWith($master->name, Brokers::basename()))->all();
 
         collect(Arr::pluck($listeners, 'pid'))
             ->whenNotEmpty(fn () => $this->components->info('Sending TERM signal to processes.'))

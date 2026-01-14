@@ -53,11 +53,11 @@ class MqttMessageJob implements ShouldQueue
     {
         $mqtt = $this->mqtt();
 
-        if (!$mqtt->isConnected()) {
+        if (! $mqtt->isConnected()) {
             $mqtt->connect();
         }
 
-        if (!is_string($this->message)) {
+        if (! is_string($this->message)) {
             $this->message = json_encode($this->message);
         }
 

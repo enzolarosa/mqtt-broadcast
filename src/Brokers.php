@@ -37,7 +37,7 @@ class Brokers implements Terminable
     {
         static $token;
 
-        if (!$token) {
+        if (! $token) {
             $token = Str::random(4);
         }
 
@@ -129,7 +129,7 @@ class Brokers implements Terminable
 
         $client = $this->client($this->broker->name);
 
-        if (!$client->isConnected()) {
+        if (! $client->isConnected()) {
             $client->connect();
         }
 
@@ -191,7 +191,7 @@ class Brokers implements Terminable
         call_user_func($this->output, $type, $line);
     }
 
-    protected function exit($status = 0)
+    protected function exit($status = 0): never
     {
         $this->exitProcess($status);
     }
