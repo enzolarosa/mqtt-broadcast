@@ -1,62 +1,45 @@
 <?php
 
+declare(strict_types=1);
+
 namespace enzolarosa\MqttBroadcast\Commands;
 
-use enzolarosa\MqttBroadcast\Events\MqttMessageReceived;
+use enzolarosa\MqttBroadcast\Brokers;
 use Illuminate\Console\Command;
-use Illuminate\Support\Str;
-use PhpMqtt\Client\MqttClient;
-use Throwable;
+use Symfony\Component\Console\Attribute\AsCommand;
 
+#[AsCommand(name: 'mqtt-broadcast', description: 'Mqtt Broadcast Command')]
 class MqttBroadcastCommand extends Command
 {
     public $signature = 'mqtt-broadcast {broker}';
+
     protected $description = 'Listener for mqtt message';
 
-    public function handle(): int
+    public function handle(Brokers $brokers)
     {
-        $clientId = Str::uuid()->toString();
+        if ($brokers->find(Brokers::name())) {
+            return $this->components->warn('A master supervisor is already running on this machine.');
+        }
 
         $broker = $this->argument('broker');
-        $server = config("mqtt-broadcast.connections.$broker.host");
-        $port = config("mqtt-broadcast.connections.$broker.port");
 
-        $mqtt = new MqttClient($server, $port, $clientId);
-        $mqtt->connect();
+        $master = (new Brokers)
+            ->make($broker)
+            ->handleOutputUsing(function ($type, $line) {
+                $this->output->writeln($line);
+            });
 
-        $this->info('MQTT Listener started successfully at:' . now()->toIso8601String());
-
-        $mqtt->subscribe('#', function ($topic, $message) use ($broker) {
-            $this->comment(sprintf("Received message on topic [%s]: %s", $topic, $message));
-            try {
-                MqttMessageReceived::dispatch(
-                    $topic,
-                    $message,
-                    $broker,
-                    $this->pid()
-                );
-            } catch (Throwable $exception) {
-                report($exception);
-                $this->error("\t{$exception->getMessage()}");
-            }
-        }, 0);
+        $this->components->info(sprintf('Mqtt Broadcast for %s broker started successfully.', $broker));
 
         pcntl_async_signals(true);
-        pcntl_signal(SIGINT, function () use ($mqtt) {
-            $this->line('Shutting down...');
+        pcntl_signal(SIGINT, function () use ($master) {
+            $this->output->writeln('');
 
-            $mqtt->interrupt();
-            $mqtt->disconnect();
+            $this->components->info('Shutting down.');
+
+            return $master->terminate();
         });
 
-        $mqtt->loop();
-        $mqtt->disconnect();
-
-        return self::SUCCESS;
-    }
-
-    public function pid()
-    {
-        return getmypid();
+        $master->monitor();
     }
 }

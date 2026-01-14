@@ -1,33 +1,39 @@
 <?php
 
+declare(strict_types=1);
+
 namespace enzolarosa\MqttBroadcast\Models;
 
 use enzolarosa\MqttBroadcast\Traits\Models\ExternalId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MqttLogger extends Model
 {
-    use HasFactory, SoftDeletes, ExternalId;
-
-    public function __construct()
-    {
-        $this->connection = config('mqtt-broadcast.logs.connection');
-        $this->table = config('mqtt-broadcast.logs.table');
-
-        parent::__construct();
-    }
+    use ExternalId;
+    use HasFactory;
 
     protected $fillable = [
         'broker',
         'topic',
-        'message'
+        'message',
     ];
 
     protected $casts = [
+        'message' => 'json',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-        'deleted_at' => 'datetime',
     ];
+
+    public function __construct()
+    {
+        $dbConnection = config('mqtt-broadcast.logs.connection');
+        if ($dbConnection) {
+            $this->connection = $dbConnection;
+        }
+
+        $this->table = config('mqtt-broadcast.logs.table');
+
+        parent::__construct();
+    }
 }

@@ -1,47 +1,87 @@
 <?php
 
+declare(strict_types=1);
+
 namespace enzolarosa\MqttBroadcast;
 
-use enzolarosa\MqttBroadcast\Commands\MqttBroadcastCommand;
-use enzolarosa\MqttBroadcast\Events\MqttMessageReceived;
-use enzolarosa\MqttBroadcast\Listeners\Logger;
-use Illuminate\Support\Facades\Event;
-use Spatie\LaravelPackageTools\Package;
-use Spatie\LaravelPackageTools\PackageServiceProvider;
+use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Support\ServiceProvider;
 
-class MqttBroadcastServiceProvider extends PackageServiceProvider
+class MqttBroadcastServiceProvider extends ServiceProvider
 {
-    protected array $listen = [
-        MqttMessageReceived::class => [
-            Logger::class,
-        ],
-    ];
+    use EventMap, ServiceBindings;
 
-    public function configurePackage(Package $package): void
+    public function boot()
     {
-        /*
-         * This class is a Package Service Provider
-         *
-         * More info: https://github.com/spatie/laravel-package-tools
-         */
-        $package
-            ->name('mqtt-broadcast')
-            ->hasConfigFile()
-            ->hasMigration('create_mqtt_broadcast_table')
-            ->hasCommand(MqttBroadcastCommand::class);
+        $this->registerEvents();
+        $this->offerPublishing();
+        $this->registerCommands();
     }
 
-    public function packageRegistered()
+    public function register()
     {
-        $this->addListenerToEvent();
+        $this->configure();
+        $this->registerServices();
     }
 
-    protected function addListenerToEvent()
+    protected function registerEvents()
     {
-        foreach ($this->listen as $event => $listeners) {
-            foreach (array_unique($listeners) as $listener) {
-                Event::listen($event, $listener);
+        $events = $this->app->make(Dispatcher::class);
+
+        foreach ($this->events as $event => $listeners) {
+            foreach ($listeners as $listener) {
+                $events->listen($event, $listener);
             }
+        }
+    }
+
+    protected function offerPublishing()
+    {
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../stubs/MqttBroadcastServiceProvider.stub' => app_path('Providers/MqttBroadcastServiceProvider.php'),
+            ], 'mqtt-broadcast-provider');
+
+            $this->publishes([
+                __DIR__.'/../config/mqtt-broadcast.php' => config_path('mqtt-broadcast.php'),
+            ], 'mqtt-broadcast-config');
+
+            if (method_exists($this, 'publishesMigrations')) {
+                $this->publishesMigrations([
+                    __DIR__.'/../database/migrations' => database_path('migrations'),
+                ], 'nova-migrations');
+            } else {
+                $this->publishes([
+                    __DIR__.'/../database/migrations' => database_path('migrations'),
+                ], 'nova-migrations');
+            }
+        }
+    }
+
+    protected function registerCommands()
+    {
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                Commands\MqttBroadcastCommand::class,
+                Commands\MqttBroadcastTerminateCommand::class,
+                Commands\MqttBroadcastTestCommand::class,
+            ]);
+        }
+    }
+
+    protected function configure()
+    {
+        $this->mergeConfigFrom(
+            __DIR__.'/../config/mqtt-broadcast.php', 'mqtt-broadcast',
+        );
+    }
+
+    protected function registerServices()
+    {
+        foreach ($this->serviceBindings as $key => $value) {
+            is_numeric($key)
+                ? $this->app->singleton($value)
+                : $this->app->singleton($key, $value);
         }
     }
 }

@@ -1,0 +1,17 @@
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\Facades\Gate;
+use enzolarosa\MqttBroadcast\MqttBroadcastServiceProvider as BaseMqttBroadcastServiceProvider;
+
+class MqttBroadcastServiceProvider extends BaseMqttBroadcastServiceProvider
+{
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        parent::boot();
+    }
+}
