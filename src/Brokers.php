@@ -133,7 +133,10 @@ class Brokers implements Terminable
             $client->connect();
         }
 
-        $client->subscribe('#', function ($topic, $message) {
+        $connection = $this->broker->connection;
+        $prefix = config("mqtt-broadcast.connections.$connection.prefix", '');
+
+        $client->subscribe($prefix.'#', function ($topic, $message) {
             $this->output('info', sprintf('Received message on topic [%s]: %s', $topic, $message));
 
             try {
