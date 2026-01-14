@@ -37,7 +37,7 @@ class Brokers implements Terminable
     {
         static $token;
 
-        if (! $token) {
+        if (!$token) {
             $token = Str::random(4);
         }
 
@@ -129,7 +129,7 @@ class Brokers implements Terminable
 
         $client = $this->client($this->broker->name);
 
-        if (! $client->isConnected()) {
+        if (!$client->isConnected()) {
             $client->connect();
         }
 
