@@ -37,7 +37,7 @@ class Brokers implements Terminable
     {
         static $token;
 
-        if (! $token) {
+        if (!$token) {
             $token = Str::random(4);
         }
 
@@ -77,14 +77,15 @@ class Brokers implements Terminable
         return Models\Brokers::query()->get();
     }
 
-    public function client($name): MqttClient
+    public function client($name, $randomId = false): MqttClient
     {
         $broker = $this->find($name);
 
         $connection = $broker->connection;
 
         $server = config("mqtt-broadcast.connections.$connection.host");
-        $clientId = config("mqtt-broadcast.connections.$connection.clientId", Str::uuid()->toString());
+        $clientId = $randomId ? Str::uuid()->toString() : config("mqtt-broadcast.connections.$connection.clientId",
+            Str::uuid()->toString());
         $port = config("mqtt-broadcast.connections.$connection.port");
         $authentication = config("mqtt-broadcast.connections.$connection.auth", false);
 
@@ -128,7 +129,7 @@ class Brokers implements Terminable
 
         $client = $this->client($this->broker->name);
 
-        if (! $client->isConnected()) {
+        if (!$client->isConnected()) {
             $client->connect();
         }
 

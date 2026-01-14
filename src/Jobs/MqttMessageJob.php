@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace enzolarosa\MqttBroadcast\Jobs;
 
+use enzolarosa\MqttBroadcast\Brokers;
 use enzolarosa\MqttBroadcast\MqttBroadcast;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Str;
 use PhpMqtt\Client\Exceptions\ConfigurationInvalidException;
 use PhpMqtt\Client\Exceptions\ConnectingToBrokerFailedException;
 use PhpMqtt\Client\Exceptions\DataTransferException;
-use PhpMqtt\Client\Exceptions\ProtocolNotSupportedException;
 use PhpMqtt\Client\Exceptions\RepositoryException;
-use PhpMqtt\Client\MqttClient;
 
 class MqttMessageJob implements ShouldQueue
 {
@@ -26,15 +24,14 @@ class MqttMessageJob implements ShouldQueue
         protected string $topic,
         protected $message,
         protected ?string $broker = 'default',
-        protected ?int $qos = 0,
     ) {
         $queue = config('mqtt-broadcast.queue.name');
         $connection = config('mqtt-broadcast.queue.connection');
-        $this->qos = config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
 
         if ($queue) {
             $this->onQueue($queue);
         }
+
         if ($connection) {
             $this->onConnection($connection);
         }
@@ -46,27 +43,32 @@ class MqttMessageJob implements ShouldQueue
      * @return void
      *
      * @throws DataTransferException
-     * @throws ProtocolNotSupportedException
      * @throws RepositoryException
      * @throws ConfigurationInvalidException
      * @throws ConnectingToBrokerFailedException
      */
     public function handle()
     {
-        $server = config("mqtt-broadcast.connections.$this->broker.host");
-        $port = config("mqtt-broadcast.connections.$this->broker.port");
+        $mqtt = (new Brokers)
+            ->make($this->broker)
+            ->client(name: $this->broker, randomId: true);
 
-        if (! is_string($this->message)) {
+        if (!$mqtt->isConnected()) {
+            $mqtt->connect();
+        }
+
+        if (!is_string($this->message)) {
             $this->message = json_encode($this->message);
         }
 
-        $mqtt = new MqttClient($server, $port, Str::uuid()->toString());
-        $mqtt->connect();
+        $qos = config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
+
         $mqtt->publish(
             MqttBroadcast::getTopic($this->topic, $this->broker),
             $this->message,
-            $this->qos,
+            $qos,
         );
+
         $mqtt->disconnect();
     }
 }
