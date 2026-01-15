@@ -26,6 +26,7 @@ class MqttMessageJob implements ShouldQueue
         protected string $topic,
         protected $message,
         protected ?string $broker = 'default',
+        protected bool $cleanSession = true,
     ) {
         $queue = config('mqtt-broadcast.queue.name');
         $connection = config('mqtt-broadcast.queue.connection');
@@ -88,7 +89,7 @@ class MqttMessageJob implements ShouldQueue
         if ($authentication) {
             $username = config("mqtt-broadcast.connections.$connection.username");
             $password = config("mqtt-broadcast.connections.$connection.password");
-            $clean_session = config("mqtt-broadcast.connections.$connection.clean_session", false);
+            $clean_session = $this->cleanSession;
             $keepAliveInterval = config("mqtt-broadcast.connections.$connection.alive_interval", 60);
             $connectionTimeout = config("mqtt-broadcast.connections.$connection.timeout", 3);
             $useTls = config("mqtt-broadcast.connections.$connection.use_tls", true);
