@@ -18,8 +18,7 @@ class Brokers implements Terminable
 
     public Models\Brokers $broker;
 
-    /** @var MqttClient */
-    public $client;
+    public ?MqttClient $client = null;
 
     /**
      * The output handler.
@@ -114,30 +113,38 @@ class Brokers implements Terminable
         return $mqtt;
     }
 
-    public function terminate($status = 0)
+    public function terminate($status = 0): never
     {
+        if ($this->client?->isConnected()) {
+            try {
+                $this->client->disconnect();
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+
         $this->broker->delete();
 
         $this->exit($status);
     }
 
-    public function monitor()
+    public function monitor(): void
     {
         $this->listenForSignals();
 
         $this->persist();
 
-        $client = $this->client($this->broker->name);
+        $this->client = $this->client($this->broker->name);
 
-        if (!$client->isConnected()) {
-            $client->connect();
+        if (!$this->client->isConnected()) {
+            $this->client->connect();
         }
 
         $connection = $this->broker->connection;
         $prefix = config("mqtt-broadcast.connections.$connection.prefix", '');
         $qos = config("mqtt-broadcast.connections.$connection.qos", 0);
 
-        $client->subscribe($prefix.'#', function ($topic, $message) {
+        $this->client->subscribe($prefix.'#', function ($topic, $message) {
             $this->output('info', sprintf('Received message on topic [%s]: %s', $topic, $message));
 
             try {
@@ -146,16 +153,16 @@ class Brokers implements Terminable
                 report($exception);
                 $this->output('error', $exception->getMessage());
             }
-        },$qos);
+        }, $qos);
 
         while (true) {
             sleep(1);
 
-            $this->loop($client);
+            $this->loop();
         }
     }
 
-    public function loop(MqttClient $client)
+    public function loop(): void
     {
         $loopStartedAt = microtime(true);
 
@@ -163,7 +170,7 @@ class Brokers implements Terminable
             $this->processPendingSignals();
 
             if ($this->broker->working) {
-                $client->loopOnce($loopStartedAt);
+                $this->client->loopOnce($loopStartedAt);
             }
         } catch (Throwable $e) {
             app(ExceptionHandler::class)->report($e);

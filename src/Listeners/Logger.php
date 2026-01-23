@@ -28,7 +28,14 @@ class Logger implements ShouldQueue
 
         $broker = $event->getBroker();
         $topic = $event->getTopic();
-        $message = json_decode($event->getMessage());
+        $rawMessage = $event->getMessage();
+
+        // Try to decode as JSON, but store raw if not valid
+        $message = json_decode($rawMessage);
+
+        if ($message === null && json_last_error() !== JSON_ERROR_NONE) {
+            $message = $rawMessage;
+        }
 
         MqttLogger::query()->create([
             'topic' => $topic,

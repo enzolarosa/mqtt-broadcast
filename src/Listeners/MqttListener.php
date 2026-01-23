@@ -27,7 +27,7 @@ abstract class MqttListener implements ListenerInterface, ShouldQueue
         return config('mqtt-broadcast.queue.listener', 'default');
     }
 
-    public function handle(MqttMessageReceived $event)
+    public function handle(MqttMessageReceived $event): void
     {
         $broker = $event->getBroker();
         $topic = $event->getTopic();
@@ -44,7 +44,15 @@ abstract class MqttListener implements ListenerInterface, ShouldQueue
             return;
         }
 
-        $obj = json_decode($event->getMessage());
+        $message = $event->getMessage();
+        $obj = json_decode($message);
+
+        // MqttListener is designed for JSON messages only
+        // If message is not valid JSON object, skip processing
+        // For non-JSON messages, listen to MqttMessageReceived event directly
+        if (! is_object($obj)) {
+            return;
+        }
 
         $this->processMessage($topic, $obj);
     }
