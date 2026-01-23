@@ -25,15 +25,14 @@ class MqttLogger extends Model
         'updated_at' => 'datetime',
     ];
 
-    public function __construct()
+    public function getConnectionName(): ?string
     {
-        $dbConnection = config('mqtt-broadcast.logs.connection');
-        if ($dbConnection) {
-            $this->connection = $dbConnection;
-        }
+        return config('mqtt-broadcast.logs.connection')
+            ?? parent::getConnectionName();
+    }
 
-        $this->table = config('mqtt-broadcast.logs.table');
-
-        parent::__construct();
+    public function getTable(): string
+    {
+        return config('mqtt-broadcast.logs.table', 'mqtt_loggers');
     }
 }
