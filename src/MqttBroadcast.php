@@ -20,13 +20,13 @@ class MqttBroadcast
      * @param  string  $topic  The MQTT topic to publish the message to.
      * @param  string  $message  The message content to publish.
      * @param  string  $broker  The broker to use for the connection (default is 'default').
-     * @param  int|string  $qos  The Quality of Service level for message delivery (default is 0).
+     * @param  int  $qos  The Quality of Service level for message delivery (0, 1, or 2).
      */
     public static function publish(
         string $topic,
         string $message,
         string $broker = 'default',
-        int|string $qos = '0',
+        int $qos = 0,
     ): void {
         MqttMessageJob::dispatch($topic, $message, $broker, $qos);
     }
@@ -37,13 +37,13 @@ class MqttBroadcast
      * @param  string  $topic  The name of the topic where the message will be published.
      * @param  mixed  $message  The message content to be published.
      * @param  string  $broker  The name of the broker connection. Defaults to 'default'.
-     * @param  string  $qos  The Quality of Service level for message delivery. Defaults to '0'.
+     * @param  int  $qos  The Quality of Service level for message delivery (0, 1, or 2).
      */
     public static function publishSync(
         string $topic,
         mixed $message,
         string $broker = 'default',
-        string $qos = '0',
+        int $qos = 0,
     ): void {
         MqttMessageJob::dispatchSync($topic, $message, $broker, $qos);
     }

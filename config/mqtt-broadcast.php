@@ -7,6 +7,7 @@ return [
         'enable' => env('MQTT_LOG_ENABLE', false),
         'queue' => env('MQTT_LOG_JOB_QUEUE', 'default'),
         'connection' => env('MQTT_LOG_CONNECTION', 'mysql'),
+        'table' => env('MQTT_LOG_TABLE', 'mqtt_loggers'),
     ],
 
     'password' => env('MQTT_MASTER_PASS', Illuminate\Support\Str::random(32)),
@@ -26,9 +27,14 @@ return [
             'username' => env('MQTT_USERNAME'),
             'password' => env('MQTT_PASSWORD'),
             'qos' => env('MQTT_QOS', 0),
+            'retain' => env('MQTT_RETAIN', false),
             'prefix' => env('MQTT_PREFIX', ''),
             'clean_session' => env('MQTT_CLEAN_SESSION', false),
             'clientId' => env('MQTT_CLIENT_ID'),
+            'alive_interval' => env('MQTT_ALIVE_INTERVAL', 60),
+            'timeout' => env('MQTT_TIMEOUT', 3),
+            'use_tls' => env('MQTT_USE_TLS', false),
+            'self_signed_allowed' => env('MQTT_SELF_SIGNED_ALLOWED', true),
         ],
 
         //        'local' => [

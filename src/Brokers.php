@@ -98,7 +98,7 @@ class Brokers implements Terminable
             $keepAliveInterval = config("mqtt-broadcast.connections.$connection.alive_interval", 60);
             $connectionTimeout = config("mqtt-broadcast.connections.$connection.timeout", 3);
             $useTls = config("mqtt-broadcast.connections.$connection.use_tls", true);
-            $selfSignedAllowed = config("mqtt-broadcast.connections.$connection.self_aligned_allowed", true);
+            $selfSignedAllowed = config("mqtt-broadcast.connections.$connection.self_signed_allowed", true);
 
             $connectionSettings = (new ConnectionSettings)
                 ->setKeepAliveInterval($keepAliveInterval)

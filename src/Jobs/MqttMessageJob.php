@@ -26,6 +26,7 @@ class MqttMessageJob implements ShouldQueue
         protected string $topic,
         protected $message,
         protected ?string $broker = 'default',
+        protected ?int $qos = null,
         protected bool $cleanSession = true,
     ) {
         $queue = config('mqtt-broadcast.queue.name');
@@ -62,7 +63,7 @@ class MqttMessageJob implements ShouldQueue
             $this->message = json_encode($this->message);
         }
 
-        $qos = config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
+        $qos = $this->qos ?? config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
         $retain = config('mqtt-broadcast.connections.'.$this->broker.'.retain', false);
 
         $mqtt->publish(
@@ -93,7 +94,7 @@ class MqttMessageJob implements ShouldQueue
             $keepAliveInterval = config("mqtt-broadcast.connections.$connection.alive_interval", 60);
             $connectionTimeout = config("mqtt-broadcast.connections.$connection.timeout", 3);
             $useTls = config("mqtt-broadcast.connections.$connection.use_tls", true);
-            $selfSignedAllowed = config("mqtt-broadcast.connections.$connection.self_aligned_allowed", true);
+            $selfSignedAllowed = config("mqtt-broadcast.connections.$connection.self_signed_allowed", true);
 
             $connectionSettings = (new ConnectionSettings)
                 ->setKeepAliveInterval($keepAliveInterval)
