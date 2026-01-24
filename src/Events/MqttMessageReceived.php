@@ -12,10 +12,10 @@ class MqttMessageReceived
     use Dispatchable, SerializesModels;
 
     public function __construct(
-        protected string $topic,
-        protected string $message,
-        protected string $broker = 'local',
-        protected ?int $pid = null) {}
+        protected readonly string $topic,
+        protected readonly string $message,
+        protected readonly string $broker = 'local',
+        protected readonly ?int $pid = null) {}
 
     public function getTopic(): string
     {
@@ -35,33 +35,5 @@ class MqttMessageReceived
     public function getPid(): ?int
     {
         return $this->pid;
-    }
-
-    public function setTopic(string $topic): self
-    {
-        $this->topic = $topic;
-
-        return $this;
-    }
-
-    public function setMessage(string $message): self
-    {
-        $this->message = $message;
-
-        return $this;
-    }
-
-    public function setBroker(string $broker): self
-    {
-        $this->broker = $broker;
-
-        return $this;
-    }
-
-    public function setPid(int $pid): self
-    {
-        $this->pid = $pid;
-
-        return $this;
     }
 }
