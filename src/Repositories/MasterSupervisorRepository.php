@@ -7,12 +7,28 @@ namespace enzolarosa\MqttBroadcast\Repositories;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * Repository for master supervisor state persistence.
+ *
+ * Uses cache (Redis/File/Memcached/Array) for state storage with configurable TTL.
+ * Inspired by Laravel Horizon's repository pattern.
+ *
+ * @see \enzolarosa\MqttBroadcast\Supervisors\MasterSupervisor
+ */
 class MasterSupervisorRepository
 {
     /**
-     * Cache TTL in seconds (1 hour).
+     * Cache TTL in seconds.
      */
-    protected int $ttl = 3600;
+    protected int $ttl;
+
+    /**
+     * Create a new repository instance.
+     */
+    public function __construct()
+    {
+        $this->ttl = config('mqtt-broadcast.master_supervisor.cache_ttl', 3600);
+    }
 
     /**
      * Update the master supervisor state in cache.
