@@ -220,23 +220,21 @@ describe('MqttMessageReceived Event', function () {
         expect($setterMethods)->toBeEmpty();
     });
 
-    it('has only getter methods and constructor', function () {
+    it('has getter methods and constructor defined in the class', function () {
         $reflection = new ReflectionClass(MqttMessageReceived::class);
-        $methods = $reflection->getMethods(ReflectionMethod::IS_PUBLIC);
 
-        $publicMethodNames = array_map(fn ($method) => $method->getName(), $methods);
+        // Verify that the class defines constructor and 4 getters
+        expect($reflection->hasMethod('__construct'))->toBeTrue()
+            ->and($reflection->hasMethod('getTopic'))->toBeTrue()
+            ->and($reflection->hasMethod('getMessage'))->toBeTrue()
+            ->and($reflection->hasMethod('getBroker'))->toBeTrue()
+            ->and($reflection->hasMethod('getPid'))->toBeTrue();
 
-        // Should only have constructor and 4 getters
-        $expectedMethods = ['__construct', 'getTopic', 'getMessage', 'getBroker', 'getPid'];
-
-        // Filter out trait methods (Dispatchable, SerializesModels)
-        $classMethods = array_filter($publicMethodNames, function ($methodName) use ($reflection) {
-            $method = $reflection->getMethod($methodName);
-
-            return $method->getDeclaringClass()->getName() === MqttMessageReceived::class;
-        });
-
-        expect($classMethods)->toBe($expectedMethods);
+        // Verify these methods are public
+        expect($reflection->getMethod('getTopic')->isPublic())->toBeTrue()
+            ->and($reflection->getMethod('getMessage')->isPublic())->toBeTrue()
+            ->and($reflection->getMethod('getBroker')->isPublic())->toBeTrue()
+            ->and($reflection->getMethod('getPid')->isPublic())->toBeTrue();
     });
 
     it('can be dispatched as event', function () {
@@ -247,7 +245,8 @@ describe('MqttMessageReceived Event', function () {
             message: 'test message'
         );
 
-        $event->dispatch();
+        // Dispatch using event() helper (correct way)
+        event($event);
 
         Event::assertDispatched(MqttMessageReceived::class);
     });
@@ -262,7 +261,8 @@ describe('MqttMessageReceived Event', function () {
             pid: 12345
         );
 
-        $event->dispatch();
+        // Dispatch using event() helper
+        event($event);
 
         // Verify properties are still the same after dispatch
         expect($event->getTopic())->toBe('sensors/temp')

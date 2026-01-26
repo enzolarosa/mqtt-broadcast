@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use enzolarosa\MqttBroadcast\Exceptions\InvalidBrokerException;
+use enzolarosa\MqttBroadcast\Exceptions\MqttBroadcastException;
 use enzolarosa\MqttBroadcast\Facades\MqttBroadcast;
 use enzolarosa\MqttBroadcast\Jobs\MqttMessageJob;
 use Illuminate\Support\Facades\Queue;
@@ -76,7 +76,7 @@ describe('MqttBroadcast Facade', function () {
 
     it('throws exception when broker does not exist', function () {
         MqttBroadcast::publish('test/topic', 'message', 'nonexistent');
-    })->throws(InvalidBrokerException::class, 'Broker connection [nonexistent] is not configured');
+    })->throws(MqttBroadcastException::class, 'Broker connection [nonexistent] is not configured');
 
     it('throws exception when broker is missing host', function () {
         config(['mqtt-broadcast.connections.broken' => [
@@ -84,7 +84,7 @@ describe('MqttBroadcast Facade', function () {
         ]]);
 
         MqttBroadcast::publish('test/topic', 'message', 'broken');
-    })->throws(InvalidBrokerException::class, 'missing required key [host]');
+    })->throws(MqttBroadcastException::class, 'missing required key [host]');
 
     it('throws exception when broker is missing port', function () {
         config(['mqtt-broadcast.connections.broken' => [
@@ -92,15 +92,15 @@ describe('MqttBroadcast Facade', function () {
         ]]);
 
         MqttBroadcast::publish('test/topic', 'message', 'broken');
-    })->throws(InvalidBrokerException::class, 'missing required key [port]');
+    })->throws(MqttBroadcastException::class, 'missing required key [port]');
 
     it('validates broker before publishing sync', function () {
         expect(fn () => MqttBroadcast::publishSync('test', 'msg', 'nonexistent'))
-            ->toThrow(InvalidBrokerException::class);
+            ->toThrow(MqttBroadcastException::class);
     });
 
     it('validates broker before getting topic', function () {
         expect(fn () => MqttBroadcast::getTopic('test', 'nonexistent'))
-            ->toThrow(InvalidBrokerException::class);
+            ->toThrow(MqttBroadcastException::class);
     });
 });

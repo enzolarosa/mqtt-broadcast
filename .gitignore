@@ -13,3 +13,10 @@ vendor
 node_modules
 .php-cs-fixer.cache
 .phpunit.cache
+articles/
+completed.txt
+optimization.txt
+.DS_Store
+HORIZON_PATTERN_ANALYSIS.md
+H4_TEST_CASES.md
+H4_SUMMARY.md

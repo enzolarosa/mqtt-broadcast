@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace enzolarosa\MqttBroadcast\Jobs;
 
-use enzolarosa\MqttBroadcast\Exceptions\InvalidBrokerException;
+use enzolarosa\MqttBroadcast\Exceptions\MqttBroadcastException;
 use enzolarosa\MqttBroadcast\MqttBroadcast;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -34,17 +34,17 @@ class MqttMessageJob implements ShouldQueue
 
         throw_if(
             is_null($brokerConfig),
-            InvalidBrokerException::notConfigured($broker)
+            MqttBroadcastException::brokerNotConfigured($broker)
         );
 
         throw_if(
             !isset($brokerConfig['host']),
-            InvalidBrokerException::missingConfiguration($broker, 'host')
+            MqttBroadcastException::brokerMissingConfiguration($broker, 'host')
         );
 
         throw_if(
             !isset($brokerConfig['port']),
-            InvalidBrokerException::missingConfiguration($broker, 'port')
+            MqttBroadcastException::brokerMissingConfiguration($broker, 'port')
         );
 
         $queue = config('mqtt-broadcast.queue.name');
