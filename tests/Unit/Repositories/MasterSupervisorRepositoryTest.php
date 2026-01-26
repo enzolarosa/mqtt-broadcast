@@ -292,15 +292,18 @@ class MasterSupervisorRepositoryTest extends TestCase
         $name = 'timestamp-test';
         $data = ['pid' => 12345];
 
-        $beforeUpdate = now();
+        $beforeUpdate = now()->subSecond();
         $this->repository->update($name, $data);
-        $afterUpdate = now();
+        $afterUpdate = now()->addSecond();
 
         $result = $this->repository->find($name);
         $this->assertArrayHasKey('updated_at', $result);
 
         $updatedAt = \Carbon\Carbon::parse($result['updated_at']);
-        $this->assertTrue($updatedAt->between($beforeUpdate, $afterUpdate));
+        $this->assertTrue(
+            $updatedAt->between($beforeUpdate, $afterUpdate),
+            "Expected updated_at to be between {$beforeUpdate} and {$afterUpdate}, got {$updatedAt}"
+        );
     }
 
     /**
