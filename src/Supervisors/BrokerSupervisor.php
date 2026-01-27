@@ -365,6 +365,16 @@ class BrokerSupervisor implements Terminable, Pausable
     }
 
     /**
+     * Check if the supervisor is currently working.
+     *
+     * @return bool True if the supervisor is active and processing messages
+     */
+    public function isWorking(): bool
+    {
+        return $this->working;
+    }
+
+    /**
      * Output a message via the callback.
      *
      * Calls the output callback if provided. Used for logging and

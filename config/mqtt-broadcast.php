@@ -79,6 +79,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Environment Supervisors
+    |--------------------------------------------------------------------------
+    |
+    | Define which MQTT brokers should be monitored in each environment.
+    | Following Laravel Horizon's pattern, this allows environment-specific
+    | broker configurations. When running `php artisan mqtt-broadcast`, the
+    | command will automatically load brokers for the current environment.
+    |
+    | Example:
+    |   'environments' => [
+    |       'production' => ['prod-mqtt-1', 'prod-mqtt-2'],
+    |       'local' => ['default'],
+    |   ],
+    |
+    */
+    'environments' => [
+        'production' => [
+            'default',
+        ],
+
+        'local' => [
+            'default',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Repository Settings
     |--------------------------------------------------------------------------
     |

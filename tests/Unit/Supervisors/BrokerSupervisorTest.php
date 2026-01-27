@@ -537,4 +537,28 @@ class BrokerSupervisorTest extends TestCase
         // Should show custom max_retries value
         $this->assertStringContainsString('attempt 1/5', $this->outputCalls[0]['line']);
     }
+
+    public function test_it_reports_working_status()
+    {
+        $supervisor = $this->createSupervisor();
+
+        $this->assertTrue($supervisor->isWorking());
+
+        $supervisor->pause();
+        $this->assertFalse($supervisor->isWorking());
+
+        $supervisor->continue();
+        $this->assertTrue($supervisor->isWorking());
+    }
+
+    public function test_it_reports_not_working_after_terminate()
+    {
+        $this->repository->shouldReceive('delete')->once();
+
+        $supervisor = $this->createSupervisor();
+        $this->assertTrue($supervisor->isWorking());
+
+        $supervisor->terminate();
+        $this->assertFalse($supervisor->isWorking());
+    }
 }

@@ -28,7 +28,7 @@ trait ListensForSignals
             $this->pendingSignals['terminate'] = 'terminate';
         });
 
-        /*pcntl_signal(SIGUSR1, function () {
+        pcntl_signal(SIGUSR1, function () {
             $this->pendingSignals['restart'] = 'restart';
         });
 
@@ -38,7 +38,7 @@ trait ListensForSignals
 
         pcntl_signal(SIGCONT, function () {
             $this->pendingSignals['continue'] = 'continue';
-        });*/
+        });
     }
 
     /**
