@@ -25,6 +25,7 @@
         "ext-posix": "*"
     },
     "require-dev": {
+        "larastan/larastan": "^3.0",
         "laravel/pint": "^1.15",
         "nunomaduro/collision": "^8.1",
         "orchestra/testbench": "^9.0",
