@@ -6,7 +6,10 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(vendor/bin/pest:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(XDEBUG_MODE=off vendor/bin/pest:*)",
+      "Bash(./vendor/bin/pest:*)",
+      "Bash(tree:*)"
     ]
   }
 }

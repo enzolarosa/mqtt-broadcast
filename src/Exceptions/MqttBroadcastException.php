@@ -37,4 +37,14 @@ class MqttBroadcastException extends Exception
             "Broker [{$broker}] configuration is missing required key [{$key}] in config/mqtt-broadcast.php"
         );
     }
+
+    /**
+     * Thrown when a connection is missing required configuration.
+     */
+    public static function connectionMissingConfiguration(string $connection, string $key): self
+    {
+        return new self(
+            "MQTT connection [{$connection}] is missing required key [{$key}] in config/mqtt-broadcast.php"
+        );
+    }
 }

@@ -21,7 +21,7 @@ class MqttClientFactory
      * @param string|null $clientId Custom client ID (null = use config or generate UUID)
      * @param bool|null $cleanSession Custom clean session (null = use config)
      * @return MqttClient Configured but not connected client
-     * @throws MqttBroadcastException If connection config is not found
+     * @throws MqttBroadcastException If connection config is not found or missing required keys
      */
     public function create(
         string $connection,
@@ -33,6 +33,17 @@ class MqttClientFactory
         throw_if(
             is_null($config),
             MqttBroadcastException::connectionNotConfigured($connection)
+        );
+
+        // Validate required configuration keys
+        throw_if(
+            !isset($config['host']),
+            MqttBroadcastException::connectionMissingConfiguration($connection, 'host')
+        );
+
+        throw_if(
+            !isset($config['port']),
+            MqttBroadcastException::connectionMissingConfiguration($connection, 'port')
         );
 
         // Determine client ID: custom > config > UUID
