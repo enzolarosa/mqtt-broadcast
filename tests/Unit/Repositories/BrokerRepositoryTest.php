@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Repositories;
 
-use enzolarosa\MqttBroadcast\Models\Brokers;
+use enzolarosa\MqttBroadcast\Models\BrokerProcess;
 use enzolarosa\MqttBroadcast\Repositories\BrokerRepository;
 use enzolarosa\MqttBroadcast\Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,7 +31,7 @@ class BrokerRepositoryTest extends TestCase
 
         $broker = $this->repository->create($name, $connection);
 
-        $this->assertInstanceOf(Brokers::class, $broker);
+        $this->assertInstanceOf(BrokerProcess::class, $broker);
         $this->assertEquals($name, $broker->name);
         $this->assertEquals($connection, $broker->connection);
         $this->assertEquals(getmypid(), $broker->pid);
@@ -44,13 +44,13 @@ class BrokerRepositoryTest extends TestCase
      */
     public function test_it_finds_broker_by_name(): void
     {
-        $broker = Brokers::factory()->create([
+        $broker = BrokerProcess::factory()->create([
             'name' => 'test-broker-xyz',
         ]);
 
         $result = $this->repository->find('test-broker-xyz');
 
-        $this->assertInstanceOf(Brokers::class, $result);
+        $this->assertInstanceOf(BrokerProcess::class, $result);
         $this->assertEquals($broker->id, $result->id);
         $this->assertEquals('test-broker-xyz', $result->name);
     }
@@ -70,7 +70,7 @@ class BrokerRepositoryTest extends TestCase
      */
     public function test_it_returns_all_brokers_as_collection(): void
     {
-        Brokers::factory()->count(3)->create();
+        BrokerProcess::factory()->count(3)->create();
 
         $result = $this->repository->all();
 
@@ -94,7 +94,7 @@ class BrokerRepositoryTest extends TestCase
      */
     public function test_it_deletes_broker_by_name(): void
     {
-        Brokers::factory()->create(['name' => 'broker-to-delete']);
+        BrokerProcess::factory()->create(['name' => 'broker-to-delete']);
 
         $this->repository->delete('broker-to-delete');
 
@@ -117,7 +117,7 @@ class BrokerRepositoryTest extends TestCase
      */
     public function test_it_deletes_broker_by_pid(): void
     {
-        $broker = Brokers::factory()->create(['pid' => 99999]);
+        $broker = BrokerProcess::factory()->create(['pid' => 99999]);
 
         $this->repository->deleteByPid(99999);
 
@@ -143,7 +143,7 @@ class BrokerRepositoryTest extends TestCase
      */
     public function test_it_updates_heartbeat_timestamp(): void
     {
-        $broker = Brokers::factory()->create([
+        $broker = BrokerProcess::factory()->create([
             'name' => 'broker-heartbeat',
             'last_heartbeat_at' => now()->subMinutes(5),
         ]);
@@ -165,7 +165,7 @@ class BrokerRepositoryTest extends TestCase
      */
     public function test_touch_does_not_update_other_fields(): void
     {
-        $broker = Brokers::factory()->create([
+        $broker = BrokerProcess::factory()->create([
             'name' => 'broker-touch',
             'connection' => 'original-connection',
             'working' => true,
@@ -243,9 +243,9 @@ class BrokerRepositoryTest extends TestCase
     public function test_delete_by_pid_removes_all_brokers_with_same_pid(): void
     {
         // Edge case: multiple brokers with same PID (shouldn't happen but handle it)
-        Brokers::factory()->create(['name' => 'broker-1', 'pid' => 55555]);
-        Brokers::factory()->create(['name' => 'broker-2', 'pid' => 55555]);
-        Brokers::factory()->create(['name' => 'broker-3', 'pid' => 66666]);
+        BrokerProcess::factory()->create(['name' => 'broker-1', 'pid' => 55555]);
+        BrokerProcess::factory()->create(['name' => 'broker-2', 'pid' => 55555]);
+        BrokerProcess::factory()->create(['name' => 'broker-3', 'pid' => 66666]);
 
         $this->repository->deleteByPid(55555);
 
@@ -269,14 +269,14 @@ class BrokerRepositoryTest extends TestCase
      */
     public function test_all_returns_brokers_in_consistent_order(): void
     {
-        Brokers::factory()->create(['name' => 'broker-c', 'created_at' => now()->subMinutes(3)]);
-        Brokers::factory()->create(['name' => 'broker-a', 'created_at' => now()->subMinutes(1)]);
-        Brokers::factory()->create(['name' => 'broker-b', 'created_at' => now()->subMinutes(2)]);
+        BrokerProcess::factory()->create(['name' => 'broker-c', 'created_at' => now()->subMinutes(3)]);
+        BrokerProcess::factory()->create(['name' => 'broker-a', 'created_at' => now()->subMinutes(1)]);
+        BrokerProcess::factory()->create(['name' => 'broker-b', 'created_at' => now()->subMinutes(2)]);
 
         $brokers = $this->repository->all();
 
         $this->assertCount(3, $brokers);
         // Verify we get a stable collection
-        $this->assertInstanceOf(Brokers::class, $brokers->first());
+        $this->assertInstanceOf(BrokerProcess::class, $brokers->first());
     }
 }

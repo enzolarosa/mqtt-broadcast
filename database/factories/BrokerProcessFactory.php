@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace enzolarosa\MqttBroadcast\Database\Factories;
 
-use enzolarosa\MqttBroadcast\Models\Brokers;
+use enzolarosa\MqttBroadcast\Models\BrokerProcess;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
-class BrokersFactory extends Factory
+class BrokerProcessFactory extends Factory
 {
-    protected $model = Brokers::class;
+    protected $model = BrokerProcess::class;
 
     public function definition(): array
     {

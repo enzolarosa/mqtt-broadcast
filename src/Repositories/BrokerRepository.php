@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace enzolarosa\MqttBroadcast\Repositories;
 
-use enzolarosa\MqttBroadcast\Models\Brokers;
+use enzolarosa\MqttBroadcast\Models\BrokerProcess;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
  * Handles CRUD operations for MQTT broker records in the database.
  * Inspired by Laravel Horizon's repository pattern.
  *
- * @see \enzolarosa\MqttBroadcast\Models\Brokers
+ * @see \enzolarosa\MqttBroadcast\Models\BrokerProcess
  */
 class BrokerRepository
 {
@@ -23,11 +23,11 @@ class BrokerRepository
      *
      * @param  string  $name  Unique broker identifier
      * @param  string  $connection  MQTT connection name
-     * @return Brokers The created broker instance
+     * @return BrokerProcess The created broker instance
      */
-    public function create(string $name, string $connection): Brokers
+    public function create(string $name, string $connection): BrokerProcess
     {
-        return Brokers::create([
+        return BrokerProcess::create([
             'name' => $name,
             'connection' => $connection,
             'pid' => getmypid(),
@@ -41,21 +41,21 @@ class BrokerRepository
      * Find a broker by name.
      *
      * @param  string  $name  Broker name to search for
-     * @return Brokers|null The broker instance or null if not found
+     * @return BrokerProcess|null The broker instance or null if not found
      */
-    public function find(string $name): ?Brokers
+    public function find(string $name): ?BrokerProcess
     {
-        return Brokers::where('name', $name)->first();
+        return BrokerProcess::where('name', $name)->first();
     }
 
     /**
      * Get all brokers.
      *
-     * @return Collection<int, Brokers> Collection of all broker instances
+     * @return Collection<int, BrokerProcess> Collection of all broker instances
      */
     public function all(): Collection
     {
-        return Brokers::all();
+        return BrokerProcess::all();
     }
 
     /**
@@ -69,7 +69,7 @@ class BrokerRepository
      */
     public function touch(string $name): void
     {
-        Brokers::where('name', $name)
+        BrokerProcess::where('name', $name)
             ->update(['last_heartbeat_at' => now()]);
     }
 
@@ -82,7 +82,7 @@ class BrokerRepository
      */
     public function delete(string $name): void
     {
-        Brokers::where('name', $name)->delete();
+        BrokerProcess::where('name', $name)->delete();
     }
 
     /**
@@ -96,7 +96,7 @@ class BrokerRepository
      */
     public function deleteByPid(int $pid): void
     {
-        Brokers::where('pid', $pid)->delete();
+        BrokerProcess::where('pid', $pid)->delete();
     }
 
     /**
@@ -105,7 +105,7 @@ class BrokerRepository
      * Format: {hostname-slug}-{random-token}
      * Example: "johns-macbook-a3f2"
      *
-     * Maintains compatibility with existing Brokers::name() logic.
+     * Maintains compatibility with existing BrokerProcess::name() logic.
      *
      * @return string Generated broker name
      */

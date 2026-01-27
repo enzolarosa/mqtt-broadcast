@@ -7,9 +7,10 @@ namespace enzolarosa\MqttBroadcast\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Brokers extends Model
+class BrokerProcess extends Model
 {
     use HasFactory;
+
     protected $table = 'mqtt_brokers';
 
     protected $fillable = [

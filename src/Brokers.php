@@ -6,17 +6,30 @@ namespace enzolarosa\MqttBroadcast;
 
 use Closure;
 use enzolarosa\MqttBroadcast\Contracts\Terminable;
+use enzolarosa\MqttBroadcast\Supervisors\BrokerSupervisor;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Support\Str;
 use PhpMqtt\Client\ConnectionSettings;
 use PhpMqtt\Client\MqttClient;
 use Throwable;
 
+/**
+ * @deprecated since 2.5.0, use BrokerSupervisor + MqttClientFactory instead
+ *
+ * This class is deprecated and will be removed in v3.0. Use the new architecture:
+ * - BrokerSupervisor for broker monitoring and management
+ * - MqttClientFactory for MQTT client creation
+ * - BrokerRepository for broker persistence operations
+ *
+ * @see \enzolarosa\MqttBroadcast\Supervisors\BrokerSupervisor
+ * @see \enzolarosa\MqttBroadcast\Factories\MqttClientFactory
+ * @see \enzolarosa\MqttBroadcast\Repositories\BrokerRepository
+ */
 class Brokers implements Terminable
 {
     use ListensForSignals;
 
-    public Models\Brokers $broker;
+    public Models\BrokerProcess $broker;
 
     public ?MqttClient $client = null;
 
@@ -50,12 +63,20 @@ class Brokers implements Terminable
 
     public static function terminateByPid($pid)
     {
-        Models\Brokers::query()->where('pid', $pid)->delete();
+        Models\BrokerProcess::query()->where('pid', $pid)->delete();
     }
 
     public function make($connection)
     {
-        $this->broker = Models\Brokers::query()->create([
+        trigger_deprecation(
+            'enzolarosa/mqtt-broadcast',
+            '2.5.0',
+            'The "%s" class is deprecated, use "%s" instead.',
+            self::class,
+            BrokerSupervisor::class
+        );
+
+        $this->broker = Models\BrokerProcess::query()->create([
             'name' => static::name(),
             'connection' => $connection,
             'pid' => self::pid(),
@@ -68,12 +89,12 @@ class Brokers implements Terminable
 
     public function find($name)
     {
-        return Models\Brokers::query()->where('name', $name)->first();
+        return Models\BrokerProcess::query()->where('name', $name)->first();
     }
 
     public function all()
     {
-        return Models\Brokers::query()->get();
+        return Models\BrokerProcess::query()->get();
     }
 
     public function client($name, $randomId = false): MqttClient
