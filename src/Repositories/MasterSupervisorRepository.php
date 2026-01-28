@@ -203,8 +203,18 @@ class MasterSupervisorRepository
         }
 
         // Laravel file cache format: expiration + serialized data
-        $data = unserialize(substr($contents, 10));
+        try {
+            $data = unserialize(substr($contents, 10));
 
-        return $data['key'] ?? null;
+            return $data['key'] ?? null;
+        } catch (\Throwable $e) {
+            // Log warning for corrupted cache files but continue gracefully
+            logger()->warning('Failed to deserialize cache file', [
+                'file' => basename($file),
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 }

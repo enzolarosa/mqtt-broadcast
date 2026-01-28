@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace enzolarosa\MqttBroadcast\Models;
 
-use enzolarosa\MqttBroadcast\Traits\Models\ExternalId;
+use enzolarosa\MqttBroadcast\Models\Concerns\HasExternalId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class MqttLogger extends Model
 {
-    use ExternalId;
+    use HasExternalId;
     use HasFactory;
 
     protected $fillable = [

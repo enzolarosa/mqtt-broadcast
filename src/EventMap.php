@@ -12,9 +12,9 @@ trait EventMap
     /**
      * All the event / listener mappings.
      *
-     * @var array
+     * @var array<class-string, array<class-string>>
      */
-    protected $events = [
+    protected array $events = [
         MqttMessageReceived::class => [
             Logger::class,
         ],

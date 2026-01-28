@@ -52,6 +52,10 @@ class MqttConnectionConfig
             MqttBroadcastException::connectionNotConfigured($connection)
         );
 
+        // Merge with defaults to avoid duplication in config
+        $defaults = config('mqtt-broadcast.defaults.connection', []);
+        $config = array_merge($defaults, array_filter($config, fn ($value) => $value !== null));
+
         return self::fromArray($config, $connection);
     }
 

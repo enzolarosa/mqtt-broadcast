@@ -17,7 +17,7 @@ class Logger implements ShouldQueue
 
     public function viaQueue(): string
     {
-        return config('mqtt-broadcast.logs.queue', 'default');
+        return config('mqtt-broadcast.logs.queue');
     }
 
     public function handle(MqttMessageReceived $event): void

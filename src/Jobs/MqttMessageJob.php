@@ -22,6 +22,10 @@ class MqttMessageJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    protected int $cachedQos;
+
+    protected bool $cachedRetain;
+
     public function __construct(
         protected string $topic,
         protected mixed $message,
@@ -32,6 +36,10 @@ class MqttMessageJob implements ShouldQueue
         // Validation is now handled by MqttClientFactory in handle()
         // This allows the job to be dispatched successfully and fail
         // with proper exception handling in the worker
+
+        // Cache config values to avoid repeated calls in handle()
+        $this->cachedQos = $this->qos ?? config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
+        $this->cachedRetain = config('mqtt-broadcast.connections.'.$this->broker.'.retain', false);
 
         $queue = config('mqtt-broadcast.queue.name');
         $connection = config('mqtt-broadcast.queue.connection');
@@ -67,14 +75,11 @@ class MqttMessageJob implements ShouldQueue
                 $this->message = json_encode($this->message, JSON_THROW_ON_ERROR);
             }
 
-            $qos = $this->qos ?? config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
-            $retain = config('mqtt-broadcast.connections.'.$this->broker.'.retain', false);
-
             $mqtt->publish(
                 MqttBroadcast::getTopic($this->topic, $this->broker),
                 $this->message,
-                $qos,
-                $retain,
+                $this->cachedQos,
+                $this->cachedRetain,
             );
         } finally {
             if ($mqtt->isConnected()) {

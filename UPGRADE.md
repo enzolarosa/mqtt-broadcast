@@ -108,6 +108,54 @@ $supervisor->monitor();
 
 ---
 
+#### 3. Validator Class Deprecated: `BrokerValidator`
+
+**What changed:**
+- `enzolarosa\MqttBroadcast\Support\BrokerValidator` is now deprecated
+- Use `MqttConnectionConfig::fromConnection()` instead for configuration validation
+- Will be removed in v4.0
+
+**Why:**
+- `BrokerValidator` provides only basic validation (host, port, auth)
+- `MqttConnectionConfig` provides comprehensive validation:
+  - Port range validation (1-65535)
+  - QoS validation (0-2)
+  - Timeout validation (>0)
+  - Type-safe configuration access
+  - Better error messages with context
+  - Immutable value object pattern
+
+**Action required:**
+
+```php
+// Before (v2.x) - Using BrokerValidator
+use enzolarosa\MqttBroadcast\Support\BrokerValidator;
+
+BrokerValidator::validate('default'); // Throws if invalid
+
+// After (v3.0) - Using MqttConnectionConfig
+use enzolarosa\MqttBroadcast\Support\MqttConnectionConfig;
+
+$config = MqttConnectionConfig::fromConnection('default'); // Throws if invalid
+// Now you have a type-safe config object with validated values
+$host = $config->host();
+$port = $config->port();
+$qos = $config->qos(); // Guaranteed to be 0, 1, or 2
+```
+
+**Benefits of migration:**
+- ✅ More thorough validation (10+ validation rules)
+- ✅ Type-safe configuration access with IDE autocomplete
+- ✅ Descriptive error messages
+- ✅ Immutable value object (thread-safe)
+- ✅ Used internally by `MqttClientFactory` (consistency)
+
+**Timeline:**
+- v3.0: Deprecated, triggers deprecation notice
+- v4.0: Removed
+
+---
+
 ## From 1.x to 2.0
 
 No breaking changes documented yet. Version 2.0 was the initial stable release with the supervisor architecture.

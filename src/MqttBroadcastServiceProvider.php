@@ -11,20 +11,20 @@ class MqttBroadcastServiceProvider extends ServiceProvider
 {
     use EventMap, ServiceBindings;
 
-    public function boot()
+    public function boot(): void
     {
         $this->registerEvents();
         $this->offerPublishing();
         $this->registerCommands();
     }
 
-    public function register()
+    public function register(): void
     {
         $this->configure();
         $this->registerServices();
     }
 
-    protected function registerEvents()
+    protected function registerEvents(): void
     {
         $events = $this->app->make(Dispatcher::class);
 
@@ -35,7 +35,7 @@ class MqttBroadcastServiceProvider extends ServiceProvider
         }
     }
 
-    protected function offerPublishing()
+    protected function offerPublishing(): void
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
@@ -58,7 +58,7 @@ class MqttBroadcastServiceProvider extends ServiceProvider
         }
     }
 
-    protected function registerCommands()
+    protected function registerCommands(): void
     {
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -69,14 +69,14 @@ class MqttBroadcastServiceProvider extends ServiceProvider
         }
     }
 
-    protected function configure()
+    protected function configure(): void
     {
         $this->mergeConfigFrom(
             __DIR__.'/../config/mqtt-broadcast.php', 'mqtt-broadcast',
         );
     }
 
-    protected function registerServices()
+    protected function registerServices(): void
     {
         foreach ($this->serviceBindings as $key => $value) {
             is_numeric($key)

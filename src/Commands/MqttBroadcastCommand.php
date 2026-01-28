@@ -76,6 +76,30 @@ class MqttBroadcastCommand extends Command
             return Command::FAILURE;
         }
 
+        // Validate all connection configurations before starting
+        $validationErrors = [];
+        foreach ($connections as $connection) {
+            try {
+                $clientFactory->create($connection);
+            } catch (\Throwable $e) {
+                $validationErrors[$connection] = $e->getMessage();
+            }
+        }
+
+        if (! empty($validationErrors)) {
+            $this->components->error('Configuration validation failed for the following connections:');
+            $this->newLine();
+
+            foreach ($validationErrors as $connection => $error) {
+                $this->line("  <fg=red>✗</> <fg=yellow>{$connection}</>: {$error}");
+            }
+
+            $this->newLine();
+            $this->line('Fix the configuration errors and try again.');
+
+            return Command::FAILURE;
+        }
+
         // Create master supervisor
         $master = new MasterSupervisor($masterName, $masterRepository);
 

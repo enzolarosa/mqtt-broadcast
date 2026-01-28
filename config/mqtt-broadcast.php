@@ -3,6 +3,31 @@
 declare(strict_types=1);
 
 return [
+    /*
+    |--------------------------------------------------------------------------
+    | Default Values
+    |--------------------------------------------------------------------------
+    |
+    | Default values for various configuration sections. These are applied
+    | automatically where not explicitly overridden, reducing duplication
+    | across multiple broker connections.
+    |
+    */
+    'defaults' => [
+        // Default MQTT connection settings (applied to all connections)
+        'connection' => [
+            'auth' => false,
+            'qos' => 0,
+            'retain' => false,
+            'prefix' => '',
+            'clean_session' => false,
+            'alive_interval' => 60,
+            'timeout' => 3,
+            'use_tls' => false,
+            'self_signed_allowed' => true,
+        ],
+    ],
+
     'logs' => [
         'enable' => env('MQTT_LOG_ENABLE', false),
         'queue' => env('MQTT_LOG_JOB_QUEUE', 'default'),
@@ -128,18 +153,18 @@ return [
         'default' => [
             'host' => env('MQTT_HOST', '127.0.0.1'),
             'port' => env('MQTT_PORT', '1883'),
-            'auth' => env('MQTT_AUTH', false),
+            'auth' => env('MQTT_AUTH'),
             'username' => env('MQTT_USERNAME'),
             'password' => env('MQTT_PASSWORD'),
-            'qos' => env('MQTT_QOS', 0),
-            'retain' => env('MQTT_RETAIN', false),
-            'prefix' => env('MQTT_PREFIX', ''),
-            'clean_session' => env('MQTT_CLEAN_SESSION', false),
+            'qos' => env('MQTT_QOS'),
+            'retain' => env('MQTT_RETAIN'),
+            'prefix' => env('MQTT_PREFIX'),
+            'clean_session' => env('MQTT_CLEAN_SESSION'),
             'clientId' => env('MQTT_CLIENT_ID'),
-            'alive_interval' => env('MQTT_ALIVE_INTERVAL', 60),
-            'timeout' => env('MQTT_TIMEOUT', 3),
-            'use_tls' => env('MQTT_USE_TLS', false),
-            'self_signed_allowed' => env('MQTT_SELF_SIGNED_ALLOWED', true),
+            'alive_interval' => env('MQTT_ALIVE_INTERVAL'),
+            'timeout' => env('MQTT_TIMEOUT'),
+            'use_tls' => env('MQTT_USE_TLS'),
+            'self_signed_allowed' => env('MQTT_SELF_SIGNED_ALLOWED'),
         ],
 
         //        'local' => [
