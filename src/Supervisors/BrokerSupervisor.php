@@ -203,8 +203,11 @@ class BrokerSupervisor implements Terminable, Pausable
             $this->client->loopOnce(microtime(true));
             $this->repository->touch($this->brokerName);
         } catch (Throwable $e) {
-            // Operational error (not connection) - just log
-            $this->output('error', $e->getMessage());
+            // Operational error (not connection) - log and attempt reconnect
+            $this->output('error', sprintf('[%d] %s', $e->getCode(), $e->getMessage()));
+
+            // Mark client as disconnected to trigger reconnection
+            $this->client = null;
         }
     }
 
@@ -326,6 +329,8 @@ class BrokerSupervisor implements Terminable, Pausable
      */
     protected function connect(): void
     {
+        $this->output('info', "Connecting to broker: {$this->connection}...");
+
         $this->client = $this->clientFactory->create($this->connection);
 
         // Get connection settings for authentication
@@ -341,6 +346,8 @@ class BrokerSupervisor implements Terminable, Pausable
             $this->client->connect();
         }
 
+        $this->output('info', "✓ Connected successfully");
+
         // Get subscription configuration
         $config = config("mqtt-broadcast.connections.{$this->connection}");
         $prefix = $config['prefix'] ?? '';
@@ -353,7 +360,8 @@ class BrokerSupervisor implements Terminable, Pausable
             $this->handleMessage($topic, $message);
         }, $qos);
 
-        $this->output('info', "Connected to broker: {$this->connection}");
+        $this->output('info', sprintf('✓ Subscribed to topic: %s (QoS: %d)', $topic, $qos));
+        $this->output('info', '✓ Ready to receive messages');
     }
 
     /**
@@ -368,7 +376,12 @@ class BrokerSupervisor implements Terminable, Pausable
      */
     protected function handleMessage(string $topic, string $message): void
     {
-        $this->output('info', sprintf('Received message on [%s]: %s', $topic, $message));
+        // Truncate long messages for display
+        $displayMessage = strlen($message) > 100
+            ? substr($message, 0, 100) . '...'
+            : $message;
+
+        $this->output('info', sprintf('📨 Message received on topic [%s]: %s', $topic, $displayMessage));
 
         try {
             MqttBroadcast::received($topic, $message, $this->brokerName);

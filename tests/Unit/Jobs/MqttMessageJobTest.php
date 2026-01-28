@@ -120,7 +120,7 @@ test('job publishes string message successfully', function () {
     // Setup mock expectations
     $this->mockFactory->shouldReceive('create')
         ->once()
-        ->with('default')
+        ->with('default', Mockery::type('string'))
         ->andReturn($this->mockClient);
 
     $this->mockFactory->shouldReceive('getConnectionSettings')
@@ -175,7 +175,7 @@ test('job skips connect when client already connected', function () {
 
     $this->mockFactory->shouldReceive('create')
         ->once()
-        ->with('default')
+        ->with('default', Mockery::type('string'))
         ->andReturn($this->mockClient);
 
     $this->mockFactory->shouldReceive('getConnectionSettings')
@@ -333,7 +333,7 @@ test('job fails without retry on configuration error', function () {
     // Setup: Invalid broker config (will throw MqttBroadcastException)
     $this->mockFactory->shouldReceive('create')
         ->once()
-        ->with('invalid-broker')
+        ->with('invalid-broker', Mockery::type('string'))
         ->andThrow(new MqttBroadcastException('Connection [invalid-broker] not configured'));
 
     // Should NOT attempt getConnectionSettings or any other operation
@@ -369,7 +369,7 @@ test('job fails when connection host is missing', function () {
 
     $this->mockFactory->shouldReceive('create')
         ->once()
-        ->with('broken')
+        ->with('broken', Mockery::type('string'))
         ->andThrow(new MqttBroadcastException('Host is required for connection [broken]'));
 
     $job = new MqttMessageJob('test/topic', 'message', 'broken');

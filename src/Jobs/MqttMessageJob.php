@@ -134,8 +134,11 @@ class MqttMessageJob implements ShouldQueue
     {
         $factory = app(MqttClientFactory::class);
 
-        // Create client (validates config: connection exists, host/port present)
-        $client = $factory->create($this->broker);
+        // Create client with random UUID to avoid conflicts with listener
+        // Listener uses fixed clientId from config, publisher uses random UUID
+        $publisherClientId = \Illuminate\Support\Str::uuid()->toString();
+
+        $client = $factory->create($this->broker, $publisherClientId);
 
         // Get connection settings for authentication
         $connectionInfo = $factory->getConnectionSettings(
