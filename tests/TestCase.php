@@ -110,4 +110,23 @@ class TestCase extends Orchestra
 
         return $property->getValue($object);
     }
+
+    /**
+     * Check if a real MQTT broker is available for integration tests.
+     */
+    protected function brokerAvailable(): bool
+    {
+        return \Tests\Support\BrokerAvailability::isAvailable();
+    }
+
+    /**
+     * Skip test if real MQTT broker is not available.
+     */
+    protected function requiresBroker(): void
+    {
+        if (! $this->brokerAvailable()) {
+            $reason = \Tests\Support\BrokerAvailability::getUnavailableReason();
+            $this->markTestSkipped($reason ?? 'MQTT broker not available');
+        }
+    }
 }
