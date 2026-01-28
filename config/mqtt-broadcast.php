@@ -5,241 +5,86 @@ declare(strict_types=1);
 return [
     /*
     |--------------------------------------------------------------------------
-    | Defaults
+    | QUICK START - Minimal Configuration
     |--------------------------------------------------------------------------
     |
-    | Default settings for all broker connections. Inspired by Laravel Horizon,
-    | these values are automatically applied to all connections unless explicitly
-    | overridden in the connection's configuration.
+    | These are the ONLY settings you need to get started.
+    | Everything else has sensible defaults.
+    |
+    | 1. Set your MQTT broker connection details
+    | 2. Run: php artisan mqtt-broadcast
+    | 3. Done!
     |
     */
-    'defaults' => [
-        'connection' => [
-            // MQTT Protocol Settings
-            'auth' => false,
-            'qos' => 0,
-            'retain' => false,
-            'prefix' => '',
-            'clean_session' => false,
-            'alive_interval' => 60,
-            'timeout' => 3,
-            'use_tls' => false,
-            'self_signed_allowed' => true,
 
-            // Reconnection & Circuit Breaker
-            // Maximum number of consecutive connection failures before action
-            'max_retries' => env('MQTT_MAX_RETRIES', 20),
-
-            // Maximum delay between retry attempts (seconds)
-            // Uses exponential backoff: 1s, 2s, 4s, 8s... up to this max
-            'max_retry_delay' => env('MQTT_MAX_RETRY_DELAY', 60),
-
-            // Whether to terminate supervisor after max_retries reached
-            'terminate_on_max_retries' => env('MQTT_TERMINATE_ON_MAX_RETRIES', false),
-
-            // Maximum duration in seconds to keep retrying before giving up
-            // After this duration of continuous connection failures, supervisor terminates
-            // Default: 3600 seconds (1 hour)
-            'max_failure_duration' => env('MQTT_MAX_FAILURE_DURATION', 3600),
-
-            // Rate Limiting (per connection)
-            // Override these values per-connection for custom limits
-            'rate_limiting' => [
-                'max_per_minute' => env('MQTT_RATE_LIMIT_PER_MINUTE', 1000),
-                'max_per_second' => env('MQTT_RATE_LIMIT_PER_SECOND', null),
-            ],
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Broker Connections
-    |--------------------------------------------------------------------------
-    |
-    | Define your MQTT broker connections here. Each connection inherits
-    | settings from 'defaults.connection' unless explicitly overridden.
-    |
-    | Only host and port are required. All other settings are optional and
-    | will fall back to defaults if not specified.
-    |
-    */
     'connections' => [
-
         'default' => [
+            // Required: Broker connection
             'host' => env('MQTT_HOST', '127.0.0.1'),
-            'port' => env('MQTT_PORT', '1883'),
-            'auth' => env('MQTT_AUTH'),
+            'port' => env('MQTT_PORT', 1883),
+
+            // Optional: Authentication (remove if not needed)
             'username' => env('MQTT_USERNAME'),
             'password' => env('MQTT_PASSWORD'),
-            'qos' => env('MQTT_QOS'),
-            'retain' => env('MQTT_RETAIN'),
-            'prefix' => env('MQTT_PREFIX'),
-            'clean_session' => env('MQTT_CLEAN_SESSION'),
+
+            // Optional: Topic prefix for all messages
+            'prefix' => env('MQTT_PREFIX', ''),
+
+            // Optional: TLS/SSL encryption
+            'use_tls' => env('MQTT_USE_TLS', false),
+
+            // Optional: MQTT Client ID (auto-generated if not set)
             'clientId' => env('MQTT_CLIENT_ID'),
-            'alive_interval' => env('MQTT_ALIVE_INTERVAL'),
-            'timeout' => env('MQTT_TIMEOUT'),
-            'use_tls' => env('MQTT_USE_TLS'),
-            'self_signed_allowed' => env('MQTT_SELF_SIGNED_ALLOWED'),
-
-            // All settings from defaults.connection are automatically inherited
-            // You can override any default by specifying it here
         ],
 
-        // Example: Critical broker with custom settings
-        //        'critical' => [
-        //            'host' => env('MQTT_CRITICAL_HOST', '127.0.0.1'),
-        //            'port' => env('MQTT_CRITICAL_PORT', '1883'),
-        //            'username' => env('MQTT_CRITICAL_USERNAME'),
-        //            'password' => env('MQTT_CRITICAL_PASSWORD'),
-        //
-        //            // Longer failure duration for critical brokers (2 hours)
-        //            'max_failure_duration' => 7200,
-        //
-        //            // Custom rate limiting for critical broker
-        //            'rate_limiting' => [
-        //                'max_per_minute' => 5000,
-        //                'max_per_second' => 100,
-        //            ],
-        //        ],
-
-        // Example: Low-priority broker with restricted limits
-        //        'low-priority' => [
-        //            'host' => env('MQTT_LOW_PRIORITY_HOST', '127.0.0.1'),
-        //            'port' => env('MQTT_LOW_PRIORITY_PORT', '1883'),
-        //
-        //            // More restrictive rate limiting
-        //            'rate_limiting' => [
-        //                'max_per_minute' => 100,
-        //            ],
-        //        ],
+        // Add more brokers for redundancy or multi-environment
+        // 'backup' => [
+        //     'host' => env('MQTT_BACKUP_HOST', 'mqtt-backup.example.com'),
+        //     'port' => env('MQTT_BACKUP_PORT', 1883),
+        // ],
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Rate Limiting - Global Settings
+    | Environment Configuration
     |--------------------------------------------------------------------------
     |
-    | Global rate limiting configuration. Per-connection limits are defined
-    | in each connection's configuration (see 'connections' section above).
+    | Define which brokers to use per environment.
+    | Uses APP_ENV by default (local, staging, production).
     |
     */
-    'rate_limiting' => [
-        // Enable or disable rate limiting globally
-        'enabled' => env('MQTT_RATE_LIMIT_ENABLED', true),
 
-        // Strategy when rate limit is exceeded:
-        // - 'reject': Throw RateLimitExceededException (default)
-        // - 'throttle': Delay/requeue job until rate limit allows
-        'strategy' => env('MQTT_RATE_LIMIT_STRATEGY', 'reject'),
-
-        // Rate limit granularity:
-        // - true: Limit per broker connection (isolated)
-        // - false: Global limit across all connections
-        'by_connection' => env('MQTT_RATE_LIMIT_BY_CONNECTION', true),
-
-        // Cache driver for rate limit tracking
-        // null = use default cache driver from cache config
-        'cache_driver' => env('MQTT_RATE_LIMIT_CACHE', null),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Memory Management
-    |--------------------------------------------------------------------------
-    |
-    | Configure memory management for long-running supervisor processes.
-    | Prevents unbounded memory growth from MQTT client queues and PHP
-    | circular references.
-    |
-    */
-    'memory' => [
-        // Interval between garbage collection cycles (loop iterations)
-        // Default: 100 iterations (approximately every 100 seconds with 1s sleep)
-        'gc_interval' => env('MQTT_GC_INTERVAL', 100),
-
-        // Memory threshold in MB for warning/restart
-        // Following Laravel queue worker standard (128MB default)
-        // When exceeded:
-        // - At 80%: Warning log (early alert)
-        // - At 100%: Error log + auto-restart countdown if enabled
-        'threshold_mb' => env('MQTT_MEMORY_THRESHOLD_MB', 128),
-
-        // Automatically restart supervisor when memory threshold is breached
-        // Enabled by default for production stability
-        'auto_restart' => env('MQTT_MEMORY_AUTO_RESTART', true),
-
-        // Grace period in seconds before auto-restart is triggered
-        // Allows in-progress operations to complete safely
-        'restart_delay_seconds' => env('MQTT_RESTART_DELAY_SECONDS', 10),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Supervisor & Environment
-    |--------------------------------------------------------------------------
-    |
-    | Configuration for supervisor instances and environment-specific
-    | broker assignments.
-    |
-    */
-    'master_supervisor' => [
-        // Unique identifier for this master supervisor instance
-        'name' => env('MQTT_MASTER_NAME', 'master'),
-
-        // Cache TTL for master supervisor state (seconds)
-        'cache_ttl' => env('MQTT_MASTER_CACHE_TTL', 3600),
-
-        // Cache driver to use for state persistence
-        'cache_driver' => env('MQTT_CACHE_DRIVER', 'redis'),
-    ],
-
-    'supervisor' => [
-        // Interval between heartbeat updates (seconds)
-        'heartbeat_interval' => env('MQTT_HEARTBEAT_INTERVAL', 1),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Environment Supervisors
-    |--------------------------------------------------------------------------
-    |
-    | Define which MQTT brokers should be monitored in each environment.
-    | Following Laravel Horizon's pattern, this allows environment-specific
-    | broker configurations.
-    |
-    */
     'environments' => [
-        'production' => [
-            'default',
-        ],
-
-        'local' => [
-            'default',
-        ],
+        'production' => ['default'],
+        'local' => ['default'],
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Queue Configuration
+    | Dashboard & Monitoring
     |--------------------------------------------------------------------------
     |
-    | Queue settings for MQTT message publishing and event listeners.
+    | Access the real-time dashboard at: /mqtt-broadcast
+    |
+    | In production, configure access via Gate:
+    | Gate::define('viewMqttBroadcast', fn($user) => $user->isAdmin());
     |
     */
-    'queue' => [
-        'name' => env('MQTT_JOB_QUEUE', 'default'),
-        'listener' => env('MQTT_LISTENER_QUEUE', 'default'),
-        'connection' => env('MQTT_JOB_CONNECTION', 'redis'),
-    ],
+
+    'path' => env('MQTT_BROADCAST_PATH', 'mqtt-broadcast'),
+    'domain' => env('MQTT_BROADCAST_DOMAIN', null),
+    'middleware' => ['web', \enzolarosa\MqttBroadcast\Http\Middleware\Authorize::class],
 
     /*
     |--------------------------------------------------------------------------
-    | Logging Configuration
+    | Message Logging
     |--------------------------------------------------------------------------
     |
-    | Configure database logging for MQTT messages.
+    | Enable database logging to store all received MQTT messages.
+    | Useful for debugging and message history.
     |
     */
+
     'logs' => [
         'enable' => env('MQTT_LOG_ENABLE', false),
         'queue' => env('MQTT_LOG_JOB_QUEUE', 'default'),
@@ -249,54 +94,66 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Repository Settings
+    | ADVANCED OPTIONS
     |--------------------------------------------------------------------------
     |
-    | Configuration for broker and supervisor repository persistence.
+    | These options have optimized defaults.
+    | Only modify if you know what you're doing.
     |
     */
+
+    // MQTT Protocol Defaults
+    'defaults' => [
+        'connection' => [
+            'qos' => 0,                    // Quality of Service (0, 1, or 2)
+            'retain' => false,             // Retain messages on broker
+            'clean_session' => false,      // Clean session flag
+            'alive_interval' => 60,        // Keep-alive interval (seconds)
+            'timeout' => 3,                // Connection timeout (seconds)
+            'self_signed_allowed' => true, // Allow self-signed TLS certificates
+
+            // Reconnection behavior
+            'max_retries' => env('MQTT_MAX_RETRIES', 20),
+            'max_retry_delay' => env('MQTT_MAX_RETRY_DELAY', 60),
+            'max_failure_duration' => env('MQTT_MAX_FAILURE_DURATION', 3600), // 1 hour
+            'terminate_on_max_retries' => env('MQTT_TERMINATE_ON_MAX_RETRIES', false),
+        ],
+    ],
+
+    // Memory Management
+    'memory' => [
+        'gc_interval' => env('MQTT_GC_INTERVAL', 100),
+        'threshold_mb' => env('MQTT_MEMORY_THRESHOLD_MB', 128),
+        'auto_restart' => env('MQTT_MEMORY_AUTO_RESTART', true),
+        'restart_delay_seconds' => env('MQTT_RESTART_DELAY_SECONDS', 10),
+    ],
+
+    // Queue Configuration
+    'queue' => [
+        'name' => env('MQTT_JOB_QUEUE', 'default'),
+        'listener' => env('MQTT_LISTENER_QUEUE', 'default'),
+        'connection' => env('MQTT_JOB_CONNECTION', 'redis'),
+    ],
+
+    // Supervisor Configuration
+    'master_supervisor' => [
+        'name' => env('MQTT_MASTER_NAME', 'master'),
+        'cache_ttl' => env('MQTT_MASTER_CACHE_TTL', 3600),
+        'cache_driver' => env('MQTT_CACHE_DRIVER', 'redis'),
+    ],
+
+    'supervisor' => [
+        'heartbeat_interval' => env('MQTT_HEARTBEAT_INTERVAL', 1),
+    ],
+
+    // Repository Settings
     'repository' => [
         'broker' => [
-            // Column name for heartbeat timestamp tracking
             'heartbeat_column' => 'last_heartbeat_at',
-
-            // Threshold for considering a broker stale (seconds)
             'stale_threshold' => env('MQTT_STALE_THRESHOLD', 300),
         ],
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Master Password
-    |--------------------------------------------------------------------------
-    |
-    | Password for master supervisor authentication.
-    |
-    */
+    // Master Password (legacy, can be removed in future versions)
     'password' => env('MQTT_MASTER_PASS', Illuminate\Support\Str::random(32)),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Dashboard & HTTP Routes
-    |--------------------------------------------------------------------------
-    |
-    | Configure the HTTP routes for health check endpoint and future dashboard.
-    | Following Laravel Horizon's pattern, you can customize the path, domain,
-    | and middleware for the MQTT Broadcast routes.
-    |
-    */
-
-    // Domain to serve the dashboard on (null = any domain)
-    'domain' => env('MQTT_BROADCAST_DOMAIN', null),
-
-    // Path prefix for all MQTT Broadcast routes
-    // Health check will be available at: /{path}/api/health
-    // Example: /mqtt-broadcast/api/health (default)
-    'path' => env('MQTT_BROADCAST_PATH', 'mqtt-broadcast'),
-
-    // Middleware applied to all MQTT Broadcast routes
-    // Default: ['web', Authorize::class]
-    // The Authorize middleware allows access in 'local' environment,
-    // and checks the 'viewMqttBroadcast' gate in other environments.
-    'middleware' => ['web', \enzolarosa\MqttBroadcast\Http\Middleware\Authorize::class],
 ];
