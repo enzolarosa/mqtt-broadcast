@@ -1,0 +1,226 @@
+===============================================================================
+MQTT-BROADCAST - PUNTI DI MIGLIORAMENTO DA IMPLEMENTARE
+===============================================================================
+Data analisi: 2026-01-28
+Priorità: Da discutere e implementare nelle prossime iterazioni
+
+-------------------------------------------------------------------------------
+✅ IN LAVORAZIONE
+-------------------------------------------------------------------------------
+[1] HEALTH CHECK HTTP ENDPOINT - In discussione
+[2] METRICS & OBSERVABILITY + DASHBOARD - In discussione
+
+-------------------------------------------------------------------------------
+📋 BACKLOG - DA IMPLEMENTARE
+-------------------------------------------------------------------------------
+
+[3] GESTIONE INADEGUATA DELLE MESSAGE VALIDATION
+    Priorità: 🟠 Media | Complessità: 🟡 Media | Impatto: Alto (Security)
+
+    Problema:
+    - Nessun controllo sul formato messaggi (JSON, XML, binary)
+    - Nessun limite dimensione messaggio
+    - Nessuna validazione schema
+    - Topic patterns non validati
+
+    Soluzioni proposte:
+    1. Message Validator Service con size/schema/topic validation
+    2. Laravel Validation Rules per topic specifici
+    3. Middleware Pipeline per messaggi (SizeValidation → JsonValidation → Schema)
+
+    Rischi: Memory overflow, crash applicazione, injection attacks
+
+---
+
+[4] MANCANZA DI DEAD LETTER QUEUE (DLQ)
+    Priorità: 🔴 Alta | Complessità: 🟡 Media | Impatto: Alto (Reliability)
+
+    Problema:
+    - Messaggi falliti vengono persi definitivamente
+    - Impossibile analizzare/debuggare errori
+    - Nessun replay possibile
+
+    Soluzioni proposte:
+    1. Laravel Queue Failed Jobs + Custom Table (mqtt_failed_messages)
+    2. Separate MQTT Topic per DLQ (dlq/{original_topic})
+    3. Event Sourcing Pattern (store tutto, replay selettivo)
+
+    Features necessarie:
+    - Command: php artisan mqtt:replay-failed --id=123
+    - Filtri: --topic, --from, --to, --dry-run
+    - UI per visualizzazione messaggi falliti
+
+---
+
+[5] GESTIONE SECURITY INSUFFICIENTE
+    Priorità: 🔴 Alta | Complessità: 🟡 Media | Impatto: Critico (Compliance)
+
+    Problemi:
+    - Credentials MQTT in chiaro nel config
+    - mqtt-broadcast:terminate senza autenticazione
+    - Rate limiting bypassabile
+    - Nessun audit log operazioni critiche
+
+    Soluzioni proposte:
+    1. Laravel Encrypted Configuration / Secrets Manager
+    2. Terminate Command con token authentication + audit log
+    3. Message Signing/Encryption con HMAC-SHA256
+
+    Action items:
+    - Implementare encrypted env values
+    - Aggiungere --token flag ai comandi admin
+    - Creare tabella audit_logs
+    - Documentare security best practices
+
+---
+
+[6] TESTING LIMITATO SENZA BROKER REALE
+    Priorità: 🟠 Media | Complessità: 🟢 Bassa | Impatto: Medio (Quality)
+
+    Problema:
+    - Test usano solo MockMqttClient
+    - Nessun integration test con Mosquitto reale
+    - Edge cases di rete non testati
+
+    Soluzioni proposte:
+    1. Docker Compose con Mosquitto per test locali
+    2. GitHub Actions con service containers
+    3. Testcontainers PHP per test automatici
+
+    Setup minimo:
+    - docker-compose.test.yml con Mosquitto
+    - Test group @integration separato da unit
+    - CI/CD pipeline con broker reale
+
+---
+
+[7] ASSENZA DI ADMIN DASHBOARD / UI
+    Priorità: 🟡 Bassa | Complessità: 🔴 Alta | Impatto: Medio (DX)
+
+    Problema:
+    - Nessuna UI per monitoring
+    - Operazioni DevOps complicate
+    - Debug messaggi difficile
+    - Onboarding team lento
+
+    Soluzioni proposte:
+    1. Laravel Nova Tool (se già in uso)
+    2. Livewire Dashboard (integrato in app Laravel)
+    3. Standalone Vue.js SPA con API backend
+
+    Features desiderate:
+    - Real-time broker status
+    - Message log browser con filtri
+    - Charts: messages/hour, error rate, latency
+    - Manual publish form per testing
+    - Connection management (start/stop/restart)
+
+    NOTA: Correlato a punto [2] - Dashboard Horizon-style
+
+---
+
+[8] MANCANZA DI MESSAGE REPLAY E TIME-TRAVEL
+    Priorità: 🟠 Media | Complessità: 🔴 Alta | Impatto: Alto (Data Recovery)
+
+    Problema:
+    - Impossibile ri-processare messaggi dopo bug fix
+    - Nessun recovery da errori senza perdita dati
+    - Testing scenari passati complicato
+
+    Soluzioni proposte:
+    1. Event Store Completo (salva tutti i messaggi raw)
+    2. Snapshot + Replay Pattern (backup stato + ricostruzione)
+    3. Kafka-Style Offset Management (consumer tracking)
+
+    Comandi necessari:
+    - php artisan mqtt:replay --from --to --topic --dry-run
+    - php artisan mqtt:snapshot-create production_backup
+    - php artisan mqtt:restore-snapshot --name --replay-from
+    - php artisan mqtt:reset-offset consumer_name --to-timestamp
+
+    Use cases:
+    - Bug fix produzione → replay ultimi 7 giorni
+    - Nuova feature → applicare retroattivamente a dati storici
+    - Data migration → ripopolare DB da eventi MQTT
+
+---
+
+[9] CONFIGURAZIONE NON DYNAMIC (RICHIEDE RESTART)
+    Priorità: 🟡 Bassa | Complessità: 🟡 Media | Impatto: Medio (Ops)
+
+    Problema:
+    - Config changes richiedono restart completo (downtime)
+    - Impossibile hot-reload credenziali
+    - Impossibile aggiungere broker senza interruzione
+
+    Soluzioni proposte:
+    1. Database-Driven Configuration (tabella mqtt_connections)
+    2. Signal-Based Reload (SIGHUP → reload config)
+    3. Redis PubSub per Config Updates (real-time)
+
+    Benefici:
+    - Zero-downtime credential rotation
+    - Dynamic broker scaling
+    - A/B testing configurazioni
+
+    Considerazioni:
+    - Backwards compatibility con file config
+    - Migration path da file → database
+    - UI per gestione config (vedi punto [7])
+
+---
+
+[10] PERFORMANCE OPTIMIZATION PER HIGH-THROUGHPUT
+     Priorità: 🟡 Bassa | Complessità: 🔴 Alta | Impatto: Dipende da scale
+
+     Problema:
+     - Overhead evento Laravel per ogni messaggio
+     - Database logging sincrono (I/O blocking)
+     - Nessun batching messaggi
+     - Bottleneck oltre 10k msg/sec
+
+     Soluzioni proposte:
+     1. Message Batching (buffer 100 msg → flush bulk)
+     2. Async Non-Blocking I/O con ReactPHP
+     3. Zero-Copy Shared Memory (shmop tra processi)
+
+     Considerazioni:
+     - Implementare solo se necessario (YAGNI principle)
+     - Misurare prima di ottimizzare (benchmarks)
+     - Profiling con Blackfire/XDebug
+
+     Threshold: Considerare solo se >5000 msg/sec richiesti
+
+===============================================================================
+METRICHE DI PRIORITIZZAZIONE
+===============================================================================
+
+Alta priorità (implementare entro 1-2 mesi):
+- [4] Dead Letter Queue
+- [5] Security Enhancements
+
+Media priorità (implementare entro 3-6 mesi):
+- [3] Message Validation
+- [6] Real Broker Testing
+- [8] Message Replay
+
+Bassa priorità (valutare in base a necessità):
+- [7] Admin Dashboard (se non coperto da [2])
+- [9] Dynamic Configuration
+- [10] High-Throughput Optimization
+
+===============================================================================
+NOTE IMPLEMENTAZIONE
+===============================================================================
+
+Dependency Graph:
+- [2] Dashboard → abilita [7] Admin UI
+- [4] DLQ → richiede [8] Replay per recovery
+- [5] Security → blocca altri sviluppi se non risolto
+- [10] Performance → solo dopo load testing reale
+
+Quick Wins (basso effort, alto impatto):
+- [6] Real Broker Testing (1-2 giorni)
+- [3] Basic Message Validation (1-2 giorni)
+
+===============================================================================
