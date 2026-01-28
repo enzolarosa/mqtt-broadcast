@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Create mqtt_brokers table.
+     *
+     * Model: \enzolarosa\MqttBroadcast\Models\BrokerProcess
+     */
     public function up()
     {
         Schema::create('mqtt_brokers', function (Blueprint $table) {

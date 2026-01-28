@@ -11,5 +11,5 @@ interface Restartable
      *
      * @return void
      */
-    public function restart();
+    public function restart(): void;
 }

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace enzolarosa\MqttBroadcast\Models;
 
-use enzolarosa\MqttBroadcast\Traits\Models\ExternalId;
+use enzolarosa\MqttBroadcast\Models\Concerns\HasExternalId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class MqttLogger extends Model
 {
-    use ExternalId;
+    use HasExternalId;
     use HasFactory;
 
     protected $fillable = [
@@ -25,15 +25,14 @@ class MqttLogger extends Model
         'updated_at' => 'datetime',
     ];
 
-    public function __construct()
+    public function getConnectionName(): ?string
     {
-        $dbConnection = config('mqtt-broadcast.logs.connection');
-        if ($dbConnection) {
-            $this->connection = $dbConnection;
-        }
+        return config('mqtt-broadcast.logs.connection')
+            ?? parent::getConnectionName();
+    }
 
-        $this->table = config('mqtt-broadcast.logs.table');
-
-        parent::__construct();
+    public function getTable(): string
+    {
+        return config('mqtt-broadcast.logs.table', 'mqtt_loggers');
     }
 }

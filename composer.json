@@ -25,10 +25,13 @@
         "ext-posix": "*"
     },
     "require-dev": {
+        "larastan/larastan": "^3.0",
         "laravel/pint": "^1.15",
         "nunomaduro/collision": "^8.1",
         "orchestra/testbench": "^9.0",
-        "phpunit/phpunit": "^11.0",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-laravel": "^4.0",
+        "phpunit/phpunit": "^12.0",
         "rector/rector": "^2.3"
     },
     "autoload": {

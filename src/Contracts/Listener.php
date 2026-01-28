@@ -8,7 +8,7 @@ use enzolarosa\MqttBroadcast\Events\MqttMessageReceived;
 
 interface Listener
 {
-    public function handle(MqttMessageReceived $event);
+    public function handle(MqttMessageReceived $event): void;
 
-    public function processMessage(string $topic, object $obj);
+    public function processMessage(string $topic, object $obj): void;
 }

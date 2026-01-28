@@ -11,16 +11,16 @@ trait ListensForSignals
     /**
      * The pending signals that need to be processed.
      *
-     * @var array
+     * @var array<string, string>
      */
-    protected $pendingSignals = [];
+    protected array $pendingSignals = [];
 
     /**
      * Listen for incoming process signals.
      *
      * @return void
      */
-    protected function listenForSignals()
+    protected function listenForSignals(): void
     {
         pcntl_async_signals(true);
 
@@ -28,7 +28,7 @@ trait ListensForSignals
             $this->pendingSignals['terminate'] = 'terminate';
         });
 
-        /*pcntl_signal(SIGUSR1, function () {
+        pcntl_signal(SIGUSR1, function () {
             $this->pendingSignals['restart'] = 'restart';
         });
 
@@ -38,7 +38,7 @@ trait ListensForSignals
 
         pcntl_signal(SIGCONT, function () {
             $this->pendingSignals['continue'] = 'continue';
-        });*/
+        });
     }
 
     /**
@@ -46,7 +46,7 @@ trait ListensForSignals
      *
      * @return void
      */
-    protected function processPendingSignals()
+    protected function processPendingSignals(): void
     {
         while ($this->pendingSignals) {
             $signal = Arr::first($this->pendingSignals);

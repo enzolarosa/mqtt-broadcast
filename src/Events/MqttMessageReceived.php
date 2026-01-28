@@ -4,20 +4,18 @@ declare(strict_types=1);
 
 namespace enzolarosa\MqttBroadcast\Events;
 
-use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class MqttMessageReceived implements ShouldQueue
+class MqttMessageReceived
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable, SerializesModels;
 
     public function __construct(
-        protected string $topic,
-        protected string $message,
-        protected string $broker = 'local',
-        protected ?int $pid = null) {}
+        protected readonly string $topic,
+        protected readonly string $message,
+        protected readonly string $broker = 'local',
+        protected readonly ?int $pid = null) {}
 
     public function getTopic(): string
     {
@@ -34,36 +32,8 @@ class MqttMessageReceived implements ShouldQueue
         return $this->broker;
     }
 
-    public function getPid(): int
+    public function getPid(): ?int
     {
         return $this->pid;
-    }
-
-    public function setTopic(string $topic): self
-    {
-        $this->topic = $topic;
-
-        return $this;
-    }
-
-    public function setMessage(string $message): self
-    {
-        $this->message = $message;
-
-        return $this;
-    }
-
-    public function setBroker(string $broker): self
-    {
-        $this->broker = $broker;
-
-        return $this;
-    }
-
-    public function setPid(int $pid): self
-    {
-        $this->pid = $pid;
-
-        return $this;
     }
 }

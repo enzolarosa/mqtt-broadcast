@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace enzolarosa\MqttBroadcast\Jobs;
 
+use enzolarosa\MqttBroadcast\Exceptions\MqttBroadcastException;
+use enzolarosa\MqttBroadcast\Factories\MqttClientFactory;
 use enzolarosa\MqttBroadcast\MqttBroadcast;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Str;
-use PhpMqtt\Client\ConnectionSettings;
 use PhpMqtt\Client\Exceptions\ConfigurationInvalidException;
 use PhpMqtt\Client\Exceptions\ConnectingToBrokerFailedException;
 use PhpMqtt\Client\Exceptions\DataTransferException;
@@ -22,12 +22,25 @@ class MqttMessageJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    protected int $cachedQos;
+
+    protected bool $cachedRetain;
+
     public function __construct(
         protected string $topic,
-        protected $message,
+        protected mixed $message,
         protected ?string $broker = 'default',
+        protected ?int $qos = null,
         protected bool $cleanSession = true,
     ) {
+        // Validation is now handled by MqttClientFactory in handle()
+        // This allows the job to be dispatched successfully and fail
+        // with proper exception handling in the worker
+
+        // Cache config values to avoid repeated calls in handle()
+        $this->cachedQos = $this->qos ?? config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
+        $this->cachedRetain = config('mqtt-broadcast.connections.'.$this->broker.'.retain', false);
+
         $queue = config('mqtt-broadcast.queue.name');
         $connection = config('mqtt-broadcast.queue.connection');
 
@@ -40,72 +53,67 @@ class MqttMessageJob implements ShouldQueue
         }
     }
 
-    /**
-     * Execute the job.
-     *
-     * @return void
-     *
-     * @throws DataTransferException
-     * @throws RepositoryException
-     * @throws ConfigurationInvalidException
-     * @throws ConnectingToBrokerFailedException
-     */
-    public function handle()
+    public function handle(): void
     {
-        $mqtt = $this->mqtt();
+        // Fail-fast: If connection config is invalid, fail immediately
+        // without retrying (config errors won't fix themselves)
+        try {
+            $mqtt = $this->mqtt();
+        } catch (MqttBroadcastException $e) {
+            // Configuration error - fail the job without retry
+            $this->fail($e);
 
-        if (!$mqtt->isConnected()) {
-            $mqtt->connect();
+            return;
         }
 
-        if (!is_string($this->message)) {
-            $this->message = json_encode($this->message);
+        try {
+            if (!$mqtt->isConnected()) {
+                $mqtt->connect();
+            }
+
+            if (!is_string($this->message)) {
+                $this->message = json_encode($this->message, JSON_THROW_ON_ERROR);
+            }
+
+            $mqtt->publish(
+                MqttBroadcast::getTopic($this->topic, $this->broker),
+                $this->message,
+                $this->cachedQos,
+                $this->cachedRetain,
+            );
+        } finally {
+            if ($mqtt->isConnected()) {
+                $mqtt->disconnect();
+            }
         }
-
-        $qos = config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
-        $retain = config('mqtt-broadcast.connections.'.$this->broker.'.retain', false);
-
-        $mqtt->publish(
-            MqttBroadcast::getTopic($this->topic, $this->broker),
-            $this->message,
-            $qos,
-            $retain,
-        );
-
-        $mqtt->disconnect();
     }
 
+    /**
+     * Create and configure MQTT client using factory.
+     *
+     * @throws MqttBroadcastException If connection config is invalid
+     */
     private function mqtt(): MqttClient
     {
-        $connection = $this->broker;
-        $clientId = Str::uuid()->toString();
+        $factory = app(MqttClientFactory::class);
 
-        $server = config("mqtt-broadcast.connections.$connection.host");
-        $port = config("mqtt-broadcast.connections.$connection.port");
-        $authentication = config("mqtt-broadcast.connections.$connection.auth", false);
+        // Create client (validates config: connection exists, host/port present)
+        $client = $factory->create($this->broker);
 
-        $mqtt = new MqttClient($server, $port, $clientId);
+        // Get connection settings for authentication
+        $connectionInfo = $factory->getConnectionSettings(
+            $this->broker,
+            $this->cleanSession
+        );
 
-        if ($authentication) {
-            $username = config("mqtt-broadcast.connections.$connection.username");
-            $password = config("mqtt-broadcast.connections.$connection.password");
-            $clean_session = $this->cleanSession;
-            $keepAliveInterval = config("mqtt-broadcast.connections.$connection.alive_interval", 60);
-            $connectionTimeout = config("mqtt-broadcast.connections.$connection.timeout", 3);
-            $useTls = config("mqtt-broadcast.connections.$connection.use_tls", true);
-            $selfSignedAllowed = config("mqtt-broadcast.connections.$connection.self_aligned_allowed", true);
-
-            $connectionSettings = (new ConnectionSettings)
-                ->setKeepAliveInterval($keepAliveInterval)
-                ->setConnectTimeout($connectionTimeout)
-                ->setUseTls($useTls)
-                ->setTlsSelfSignedAllowed($selfSignedAllowed)
-                ->setUsername($username)
-                ->setPassword($password);
-
-            $mqtt->connect($connectionSettings, $clean_session);
+        // Connect with authentication if required
+        if ($connectionInfo['settings']) {
+            $client->connect(
+                $connectionInfo['settings'],
+                $connectionInfo['cleanSession']
+            );
         }
 
-        return $mqtt;
+        return $client;
     }
 }

@@ -15,7 +15,7 @@ class MqttBroadcastTestCommand extends Command
 
     protected $description = 'Test mqtt server';
 
-    public function handle()
+    public function handle(): int
     {
         $broker = $this->argument('broker');
         $topic = $this->argument('topic');
@@ -23,5 +23,7 @@ class MqttBroadcastTestCommand extends Command
 
         $this->components->task("Sending a message to $broker broker",
             fn () => MqttBroadcast::publishSync($topic, $message, $broker));
+
+        return Command::SUCCESS;
     }
 }

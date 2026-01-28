@@ -9,19 +9,19 @@ if (! function_exists('mqttMessage')) {
         string $topic,
         mixed $message,
         string $broker = 'local',
-        ?int $qos = 0,
-    ) {
+        int $qos = 0,
+    ): void {
         MqttBroadcast::publish($topic, $message, $broker, $qos);
     }
 }
 
-if (! function_exists('mqtt_message_sync')) {
+if (! function_exists('mqttMessageSync')) {
     function mqttMessageSync(
         string $topic,
         mixed $message,
         string $broker = 'local',
-        ?int $qos = 0,
-    ) {
+        int $qos = 0,
+    ): void {
         MqttBroadcast::publishSync($topic, $message, $broker, $qos);
     }
 }

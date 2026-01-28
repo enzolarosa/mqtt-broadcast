@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(composer require:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(vendor/bin/pest:*)",
+      "Bash(ls:*)",
+      "Bash(XDEBUG_MODE=off vendor/bin/pest:*)",
+      "Bash(./vendor/bin/pest:*)",
+      "Bash(tree:*)",
+      "Bash(script -q /dev/null vendor/bin/pest:*)",
+      "Bash(tee:*)",
+      "Bash(while read file)",
+      "Bash(do)",
+      "Bash(if grep -q \"public function\\\\|protected function\" \"$file\")",
+      "Bash(then)",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(xargs cat:*)"
+    ]
+  }
+}

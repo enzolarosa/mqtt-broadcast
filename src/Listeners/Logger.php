@@ -17,7 +17,7 @@ class Logger implements ShouldQueue
 
     public function viaQueue(): string
     {
-        return config('mqtt-broadcast.logs.queue', 'default');
+        return config('mqtt-broadcast.logs.queue');
     }
 
     public function handle(MqttMessageReceived $event): void
@@ -28,7 +28,15 @@ class Logger implements ShouldQueue
 
         $broker = $event->getBroker();
         $topic = $event->getTopic();
-        $message = json_decode($event->getMessage());
+        $rawMessage = $event->getMessage();
+
+        // Try to decode as JSON, but store raw if not valid
+        try {
+            $message = json_decode($rawMessage, false, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            // Not valid JSON - store raw message as-is
+            $message = $rawMessage;
+        }
 
         MqttLogger::query()->create([
             'topic' => $topic,
