@@ -417,21 +417,27 @@ mosquitto_sub -h mqtt.example.com -p 1883 -t '#' -v
 php artisan mqtt-broadcast:terminate --dry-run
 ```
 
-### Memory Leaks
+### Memory Management
 
-If experiencing memory issues with long-running processes:
+The package automatically handles memory management for long-running supervisor processes:
+
+- **Automatic Garbage Collection**: Runs periodically (default: every 100 iterations)
+- **Memory Monitoring**: Tracks current and peak memory usage
+- **Threshold Warnings**: Alerts at 80% and 100% of configured limit
+- **Auto-Restart**: Optional automatic restart when memory limit is exceeded
+
+Configure memory management in `config/mqtt-broadcast.php`:
 
 ```php
-// In your listener, explicitly free resources
-public function handle(MqttMessageReceived $event): void
-{
-    // Process message
-    $this->processMessage($event);
-
-    // Force garbage collection for long-running processes
-    gc_collect_cycles();
-}
+'memory' => [
+    'gc_interval' => 100,              // GC every N iterations
+    'threshold_mb' => 128,              // Memory limit (Laravel standard)
+    'auto_restart' => true,             // Enable auto-restart
+    'restart_delay_seconds' => 10,      // Grace period before restart
+],
 ```
+
+**Note**: Manual `gc_collect_cycles()` in listeners is no longer necessary. The supervisor handles memory cleanup automatically.
 
 ### Reconnection Issues
 

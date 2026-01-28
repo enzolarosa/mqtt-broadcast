@@ -10,6 +10,7 @@ use enzolarosa\MqttBroadcast\Contracts\Restartable;
 use enzolarosa\MqttBroadcast\Contracts\Terminable;
 use enzolarosa\MqttBroadcast\ListensForSignals;
 use enzolarosa\MqttBroadcast\Repositories\MasterSupervisorRepository;
+use enzolarosa\MqttBroadcast\Support\MemoryManager;
 use Illuminate\Support\Collection;
 use Throwable;
 
@@ -52,6 +53,11 @@ class MasterSupervisor implements Terminable, Pausable, Restartable
     protected ?Closure $output = null;
 
     /**
+     * Memory manager for GC and threshold monitoring.
+     */
+    protected MemoryManager $memoryManager;
+
+    /**
      * Create a new master supervisor instance.
      *
      * @param  string  $name  Unique identifier for this master supervisor
@@ -62,6 +68,10 @@ class MasterSupervisor implements Terminable, Pausable, Restartable
         protected MasterSupervisorRepository $repository
     ) {
         $this->supervisors = collect();
+        $this->memoryManager = new MemoryManager(
+            output: fn (string $type, string $message) => $this->output($type, $message),
+            onRestart: fn () => $this->restart()
+        );
     }
 
     /**
@@ -112,6 +122,12 @@ class MasterSupervisor implements Terminable, Pausable, Restartable
                 );
             }
 
+            // Periodic garbage collection and memory monitoring
+            // Returns false if auto-restart should be triggered
+            if (! $this->memoryManager->tick()) {
+                return; // restart() will be called by memoryManager callback
+            }
+
             $this->persist();
         } catch (Throwable $e) {
             $this->output('error', sprintf(
@@ -151,15 +167,20 @@ class MasterSupervisor implements Terminable, Pausable, Restartable
      * - Process ID (PID)
      * - Current status (running/paused)
      * - Number of active supervisors
+     * - Current and peak memory usage
      *
      * Called once during initialization and then every loop iteration.
      */
     public function persist(): void
     {
+        $memoryStats = $this->memoryManager->getMemoryStats();
+
         $this->repository->update($this->name, [
             'pid' => getmypid(),
             'status' => $this->working ? 'running' : 'paused',
             'supervisors' => $this->supervisors->count(),
+            'memory_mb' => $memoryStats['current_mb'],
+            'peak_memory_mb' => $memoryStats['peak_mb'],
         ]);
     }
 

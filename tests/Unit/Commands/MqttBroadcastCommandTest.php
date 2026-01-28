@@ -163,11 +163,13 @@ test('command creates supervisor for each configured connection', function () {
  * EDGE CASE TEST 2: Handles environment with no matching config
  */
 test('command fails when specified environment does not exist in config', function () {
-    // Setup: Only 'local' environment exists
+    // Setup: Only 'local' environment exists (override any defaults)
     config([
         'app.env' => 'local',
         'mqtt-broadcast.env' => null,
-        'mqtt-broadcast.environments.local' => ['mqtt-local'],
+        'mqtt-broadcast.environments' => [
+            'local' => ['mqtt-local'],
+        ],
     ]);
 
     // Try to use non-existent 'production' environment

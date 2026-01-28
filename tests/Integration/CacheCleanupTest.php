@@ -215,18 +215,18 @@ test('cache and database synchronization during lifecycle', function () {
 
     // Verify synchronized state
     expect(BrokerProcess::count())->toBe(1);
-    expect(Cache::has($masterName))->toBeTrue();
+    expect(Cache::has("mqtt-broadcast:master:{$masterName}"))->toBeTrue();
 
     $masterState = $masterRepo->find($masterName);
     expect($masterState['supervisors'])->toBe(1);
 
     // Simulate termination (cleanup)
     BrokerProcess::truncate();
-    Cache::forget($masterName);
+    Cache::forget("mqtt-broadcast:master:{$masterName}");
 
     // Verify clean state
     expect(BrokerProcess::count())->toBe(0);
-    expect(Cache::has($masterName))->toBeFalse();
+    expect(Cache::has("mqtt-broadcast:master:{$masterName}"))->toBeFalse();
 });
 
 /**
@@ -248,7 +248,7 @@ test('can detect orphaned master cache entries', function () {
     ]);
 
     // Verify cache exists
-    expect(Cache::has($masterName))->toBeTrue();
+    expect(Cache::has("mqtt-broadcast:master:{$masterName}"))->toBeTrue();
 
     // But no broker processes exist
     expect(BrokerProcess::count())->toBe(0);
@@ -259,7 +259,7 @@ test('can detect orphaned master cache entries', function () {
     $actualBrokers = BrokerProcess::count();
 
     // Orphaned if cache exists but no actual brokers
-    $isOrphaned = Cache::has($masterName) && $actualBrokers === 0;
+    $isOrphaned = Cache::has("mqtt-broadcast:master:{$masterName}") && $actualBrokers === 0;
 
     expect($isOrphaned)->toBeTrue('Cache should be detected as orphaned');
     expect($claimedSupervisors)->toBe(3);

@@ -10,6 +10,7 @@ use enzolarosa\MqttBroadcast\Contracts\Terminable;
 use enzolarosa\MqttBroadcast\Factories\MqttClientFactory;
 use enzolarosa\MqttBroadcast\MqttBroadcast;
 use enzolarosa\MqttBroadcast\Repositories\BrokerRepository;
+use enzolarosa\MqttBroadcast\Support\MemoryManager;
 use PhpMqtt\Client\MqttClient;
 use Throwable;
 
@@ -71,6 +72,23 @@ class BrokerSupervisor implements Terminable, Pausable
     protected int $maxRetryDelay;
 
     /**
+     * Timestamp when connection failures started.
+     * Used to track total failure duration for circuit breaker.
+     */
+    protected float $firstFailureAt = 0;
+
+    /**
+     * Maximum duration in seconds to keep retrying before giving up.
+     * After this duration of continuous failures, supervisor terminates.
+     */
+    protected int $maxFailureDuration;
+
+    /**
+     * Memory manager for GC and threshold monitoring.
+     */
+    protected MemoryManager $memoryManager;
+
+    /**
      * Create a new broker supervisor instance.
      *
      * @param  string  $brokerName  Unique broker identifier
@@ -92,16 +110,32 @@ class BrokerSupervisor implements Terminable, Pausable
     ) {
         // Load reconnection settings from config or options
         $this->maxRetries = $options['max_retries'] ??
-            config('mqtt-broadcast.reconnection.max_retries', 20);
+            config("mqtt-broadcast.connections.{$connection}.max_retries") ??
+            config('mqtt-broadcast.defaults.connection.max_retries', 20);
 
         $this->terminateOnMaxRetries = $options['terminate_on_max_retries'] ??
-            config('mqtt-broadcast.reconnection.terminate_on_max_retries', false);
+            config("mqtt-broadcast.connections.{$connection}.terminate_on_max_retries") ??
+            config('mqtt-broadcast.defaults.connection.terminate_on_max_retries', false);
 
         $this->maxRetryDelay = $options['max_retry_delay'] ??
-            config('mqtt-broadcast.reconnection.max_retry_delay', 60);
+            config("mqtt-broadcast.connections.{$connection}.max_retry_delay") ??
+            config('mqtt-broadcast.defaults.connection.max_retry_delay', 60);
+
+        // Load maximum failure duration (circuit breaker timeout)
+        // Check per-connection override first, then global default
+        $this->maxFailureDuration = $options['max_failure_duration'] ??
+            config("mqtt-broadcast.connections.{$connection}.max_failure_duration") ??
+            config('mqtt-broadcast.defaults.connection.max_failure_duration', 3600);
 
         // Validate configuration values
         $this->validateReconnectionConfig();
+
+        // Initialize memory manager (monitoring only, no auto-restart)
+        // The MasterSupervisor handles broker lifecycle decisions
+        $this->memoryManager = new MemoryManager(
+            output: fn (string $type, string $message) => $this->output($type, "[$this->brokerName] $message"),
+            onRestart: null // BrokerSupervisor doesn't auto-restart, only logs
+        );
     }
 
     /**
@@ -117,6 +151,10 @@ class BrokerSupervisor implements Terminable, Pausable
 
         if ($this->maxRetryDelay < 1) {
             throw new \InvalidArgumentException('max_retry_delay must be at least 1');
+        }
+
+        if ($this->maxFailureDuration < 1) {
+            throw new \InvalidArgumentException('max_failure_duration must be at least 1');
         }
 
         if (! is_bool($this->terminateOnMaxRetries)) {
@@ -136,6 +174,9 @@ class BrokerSupervisor implements Terminable, Pausable
         if (! $this->working) {
             return;
         }
+
+        // Periodic memory management (GC and monitoring)
+        $this->memoryManager->tick();
 
         // Handle connection phase with retry logic
         if (! $this->client || ! $this->client->isConnected()) {
@@ -168,13 +209,30 @@ class BrokerSupervisor implements Terminable, Pausable
     }
 
     /**
-     * Check if we should retry connection based on exponential backoff.
+     * Check if we should retry connection based on exponential backoff
+     * and total failure duration (circuit breaker).
      *
      * @return bool True if enough time has passed since last retry
      */
     protected function shouldRetry(): bool
     {
         $now = microtime(true);
+
+        // Check total failure duration (circuit breaker)
+        if ($this->firstFailureAt > 0) {
+            $failureDuration = $now - $this->firstFailureAt;
+
+            if ($failureDuration >= $this->maxFailureDuration) {
+                $this->output('error', sprintf(
+                    'Connection failed for %.0f seconds (threshold: %d seconds). Giving up and terminating supervisor.',
+                    $failureDuration,
+                    $this->maxFailureDuration
+                ));
+
+                // Terminate supervisor - process manager will restart if configured
+                $this->terminate(1);
+            }
+        }
 
         // First attempt or enough time has passed since last retry
         if ($this->lastRetryAt === 0.0 || ($now - $this->lastRetryAt) >= $this->retryDelay) {
@@ -199,6 +257,7 @@ class BrokerSupervisor implements Terminable, Pausable
         $this->retryCount = 0;
         $this->retryDelay = 1;
         $this->lastRetryAt = 0;
+        $this->firstFailureAt = 0; // Reset circuit breaker
     }
 
     /**
@@ -213,6 +272,11 @@ class BrokerSupervisor implements Terminable, Pausable
     {
         $this->retryCount++;
         $this->lastRetryAt = microtime(true);
+
+        // Track when failures started (for circuit breaker)
+        if ($this->firstFailureAt === 0.0) {
+            $this->firstFailureAt = microtime(true);
+        }
 
         // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 60s (max)
         $this->retryDelay = min(

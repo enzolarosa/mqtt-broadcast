@@ -22,6 +22,21 @@ class MqttBroadcastServiceProvider extends ServiceProvider
     {
         $this->configure();
         $this->registerServices();
+        $this->registerMigrations();
+    }
+
+    /**
+     * Register package migrations.
+     *
+     * Migrations are loaded automatically from the package directory,
+     * following Laravel Horizon's approach. Users don't need to publish
+     * migrations - they run directly from vendor using php artisan migrate.
+     */
+    protected function registerMigrations(): void
+    {
+        if ($this->app->runningInConsole()) {
+            $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        }
     }
 
     protected function registerEvents(): void
@@ -46,15 +61,9 @@ class MqttBroadcastServiceProvider extends ServiceProvider
                 __DIR__.'/../config/mqtt-broadcast.php' => config_path('mqtt-broadcast.php'),
             ], 'mqtt-broadcast-config');
 
-            if (method_exists($this, 'publishesMigrations')) {
-                $this->publishesMigrations([
-                    __DIR__.'/../database/migrations' => database_path('migrations'),
-                ], 'mqtt-broadcast-migrations');
-            } else {
-                $this->publishes([
-                    __DIR__.'/../database/migrations' => database_path('migrations'),
-                ], 'mqtt-broadcast-migrations');
-            }
+            // Migrations are loaded automatically via loadMigrationsFrom()
+            // No need to publish them (following Horizon's approach)
+            // Users simply run: php artisan migrate
         }
     }
 

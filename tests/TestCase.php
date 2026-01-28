@@ -35,19 +35,46 @@ class TestCase extends Orchestra
         config()->set('mqtt-broadcast.queue.name', null);
         config()->set('mqtt-broadcast.queue.connection', null);
 
-        config()->set('mqtt-broadcast.connections.default', [
-            'host' => '127.0.0.1',
-            'port' => 1883,
-            'prefix' => '',
+        // Set up defaults (Horizon-style pattern)
+        config()->set('mqtt-broadcast.defaults.connection', [
+            'auth' => false,
             'qos' => 0,
             'retain' => false,
-            'auth' => false,
-            'username' => null,
-            'password' => null,
+            'prefix' => '',
+            'clean_session' => false,
             'alive_interval' => 60,
             'timeout' => 3,
             'use_tls' => false,
             'self_signed_allowed' => true,
+            'max_retries' => 20,
+            'max_retry_delay' => 60,
+            'terminate_on_max_retries' => false,
+            'max_failure_duration' => 3600,
+            'rate_limiting' => [
+                'max_per_minute' => 1000,
+                'max_per_second' => null,
+            ],
+        ]);
+
+        // Set up default connection (inherits from defaults)
+        config()->set('mqtt-broadcast.connections.default', [
+            'host' => '127.0.0.1',
+            'port' => 1883,
+        ]);
+
+        // Set up rate limiting global config
+        config()->set('mqtt-broadcast.rate_limiting.enabled', true);
+        config()->set('mqtt-broadcast.rate_limiting.strategy', 'reject');
+        config()->set('mqtt-broadcast.rate_limiting.by_connection', true);
+        config()->set('mqtt-broadcast.rate_limiting.cache_driver', 'array');
+
+        // Use array cache for tests
+        config()->set('cache.default', 'array');
+
+        // Set up environments config
+        config()->set('mqtt-broadcast.environments', [
+            'local' => ['default'],
+            'production' => ['default'],
         ]);
     }
 

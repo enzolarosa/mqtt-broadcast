@@ -7,6 +7,7 @@ namespace enzolarosa\MqttBroadcast;
 use enzolarosa\MqttBroadcast\Events\MqttMessageReceived;
 use enzolarosa\MqttBroadcast\Exceptions\MqttBroadcastException;
 use enzolarosa\MqttBroadcast\Jobs\MqttMessageJob;
+use enzolarosa\MqttBroadcast\Support\RateLimitService;
 
 class MqttBroadcast
 {
@@ -23,6 +24,10 @@ class MqttBroadcast
     ): void {
         self::validateBrokerConfiguration($broker);
 
+        // Check rate limit before dispatching job
+        $rateLimiter = app(RateLimitService::class);
+        $rateLimiter->attempt($broker);
+
         MqttMessageJob::dispatch($topic, $message, $broker, $qos);
     }
 
@@ -33,6 +38,10 @@ class MqttBroadcast
         int $qos = 0,
     ): void {
         self::validateBrokerConfiguration($broker);
+
+        // Check rate limit before dispatching job synchronously
+        $rateLimiter = app(RateLimitService::class);
+        $rateLimiter->attempt($broker);
 
         MqttMessageJob::dispatchSync($topic, $message, $broker, $qos);
     }

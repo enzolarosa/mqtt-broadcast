@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace enzolarosa\MqttBroadcast\Jobs;
 
 use enzolarosa\MqttBroadcast\Exceptions\MqttBroadcastException;
+use enzolarosa\MqttBroadcast\Exceptions\RateLimitExceededException;
 use enzolarosa\MqttBroadcast\Factories\MqttClientFactory;
 use enzolarosa\MqttBroadcast\MqttBroadcast;
+use enzolarosa\MqttBroadcast\Support\RateLimitService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -55,6 +57,9 @@ class MqttMessageJob implements ShouldQueue
 
     public function handle(): void
     {
+        // Check rate limit before processing (second layer of protection)
+        $this->checkRateLimit();
+
         // Fail-fast: If connection config is invalid, fail immediately
         // without retrying (config errors won't fix themselves)
         try {
@@ -86,6 +91,38 @@ class MqttMessageJob implements ShouldQueue
                 $mqtt->disconnect();
             }
         }
+    }
+
+    /**
+     * Check rate limit before publishing.
+     *
+     * Handles both 'reject' and 'throttle' strategies.
+     * For 'throttle' strategy, releases the job back to queue with delay.
+     * For 'reject' strategy, attempt() will throw RateLimitExceededException.
+     */
+    protected function checkRateLimit(): void
+    {
+        $rateLimiter = app(RateLimitService::class);
+        $strategy = config('mqtt-broadcast.rate_limiting.strategy', 'reject');
+
+        // If rate limit allows, proceed
+        if ($rateLimiter->allows($this->broker)) {
+            $rateLimiter->hit($this->broker);
+            return;
+        }
+
+        // Rate limit exceeded
+        if ($strategy === 'throttle') {
+            // Calculate delay and requeue the job
+            $delay = $rateLimiter->availableIn($this->broker);
+            $this->release($delay);
+
+            return;
+        }
+
+        // Strategy is 'reject' - let attempt() throw the exception
+        // (it will build the exception with proper context)
+        $rateLimiter->attempt($this->broker);
     }
 
     /**

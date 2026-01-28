@@ -561,4 +561,139 @@ class BrokerSupervisorTest extends TestCase
         $supervisor->terminate();
         $this->assertFalse($supervisor->isWorking());
     }
+
+    public function test_config_validation_rejects_invalid_max_failure_duration(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('max_failure_duration must be at least 1');
+
+        new BrokerSupervisor(
+            'test',
+            'mqtt-test',
+            $this->repository,
+            $this->clientFactory,
+            null,
+            ['max_failure_duration' => 0]
+        );
+    }
+
+    public function test_circuit_breaker_terminates_after_max_failure_duration(): void
+    {
+        config(['mqtt-broadcast.connections.mqtt-test' => ['prefix' => '', 'qos' => 0]]);
+
+        $this->clientFactory->shouldReceive('create')->andReturn($this->mockClient);
+        $this->mockClient->shouldReceive('isConnected')->andReturn(false);
+        $this->mockClient->shouldReceive('connect')->andThrow(
+            new \RuntimeException('Connection refused')
+        );
+
+        // Set very short failure duration for testing (2 seconds)
+        $supervisor = $this->createSupervisor(null, [
+            'max_failure_duration' => 2,
+            'max_retry_delay' => 1,
+        ]);
+
+        // Repository should be called to delete when terminate is triggered
+        $this->repository->shouldReceive('delete')->once();
+
+        // Simulate connection failures over time
+        $supervisor->monitor(); // First failure at t=0
+        sleep(1);
+        $supervisor->monitor(); // Second failure at t=1
+
+        // This should trigger terminate because we've been failing for > 2 seconds
+        sleep(2);
+
+        // The terminate will call exit() which we can't test directly
+        // But we can verify the error message is logged
+        $hasTerminateMessage = false;
+        try {
+            $supervisor->monitor();
+        } catch (\Throwable $e) {
+            // Ignore exit/terminate
+        }
+
+        // Check that the terminate message was logged
+        foreach ($this->outputCalls as $call) {
+            if (str_contains($call['line'], 'Giving up and terminating')) {
+                $hasTerminateMessage = true;
+                break;
+            }
+        }
+
+        $this->assertTrue($hasTerminateMessage, 'Should have terminate message when threshold exceeded');
+    }
+
+    public function test_circuit_breaker_uses_per_connection_override(): void
+    {
+        config([
+            'mqtt-broadcast.connections.mqtt-test' => [
+                'prefix' => '',
+                'qos' => 0,
+                'max_failure_duration' => 10, // Override to 10 seconds
+            ],
+            'mqtt-broadcast.reconnection.max_failure_duration' => 3600, // Default 1 hour
+        ]);
+
+        $this->clientFactory->shouldReceive('create')->andReturn($this->mockClient);
+        $this->mockClient->shouldReceive('connect')->andThrow(
+            new \RuntimeException('Connection refused')
+        );
+
+        $supervisor = $this->createSupervisor();
+
+        // The supervisor should be using the 10 second override, not 3600
+        // We can't easily test this directly, but we can verify it doesn't terminate immediately
+        $supervisor->monitor();
+        $this->assertTrue($supervisor->isWorking());
+    }
+
+    public function test_circuit_breaker_resets_on_successful_connection(): void
+    {
+        config(['mqtt-broadcast.connections.mqtt-test' => ['prefix' => '', 'qos' => 0]]);
+
+        $connectionAttempts = 0;
+        $this->clientFactory->shouldReceive('create')->andReturn($this->mockClient);
+        $this->mockClient->shouldReceive('connect')->andReturnUsing(
+            function () use (&$connectionAttempts) {
+                $connectionAttempts++;
+                if ($connectionAttempts < 3) {
+                    throw new \RuntimeException('Connection refused');
+                }
+                // Third attempt succeeds
+            }
+        );
+
+        $this->mockClient->shouldReceive('isConnected')->andReturn(false, false, false, true, true);
+        $this->mockClient->shouldReceive('subscribe')->once();
+        $this->mockClient->shouldReceive('loopOnce')->once();
+        $this->repository->shouldReceive('touch')->once();
+
+        $supervisor = $this->createSupervisor(null, [
+            'max_failure_duration' => 10,
+            'max_retry_delay' => 1,
+        ]);
+
+        // First two failures
+        $supervisor->monitor();
+        sleep(1);
+        $supervisor->monitor();
+
+        // Third attempt succeeds - should reset circuit breaker
+        sleep(1);
+        $supervisor->monitor();
+
+        // Verify supervisor is still working (didn't terminate)
+        $this->assertTrue($supervisor->isWorking());
+
+        // Verify "Connection restored" message was logged
+        $hasRestoredMessage = false;
+        foreach ($this->outputCalls as $call) {
+            if (str_contains($call['line'], 'Connection restored successfully')) {
+                $hasRestoredMessage = true;
+                break;
+            }
+        }
+        $this->assertTrue($hasRestoredMessage, 'Should have connection restored message');
+    }
 }

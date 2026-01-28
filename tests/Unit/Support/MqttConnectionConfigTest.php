@@ -44,7 +44,7 @@ describe('MqttConnectionConfig → Creation', function () {
 
     test('it throws exception for non-existent connection', function () {
         MqttConnectionConfig::fromConnection('non-existent');
-    })->throws(MqttBroadcastException::class, 'Connection "non-existent" is not configured');
+    })->throws(MqttBroadcastException::class, 'MQTT connection [non-existent] is not configured');
 
     test('it applies default values for optional fields', function () {
         $minimal = [
@@ -70,25 +70,25 @@ describe('MqttConnectionConfig → Required Fields', function () {
         unset($this->validConfig['host']);
 
         MqttConnectionConfig::fromArray($this->validConfig);
-    })->throws(MqttBroadcastException::class, 'missing configuration for key: host');
+    })->throws(MqttBroadcastException::class, 'is missing required key [host]');
 
     test('it throws exception when host is empty string', function () {
         $this->validConfig['host'] = '';
 
         MqttConnectionConfig::fromArray($this->validConfig);
-    })->throws(MqttBroadcastException::class, 'missing configuration for key: host');
+    })->throws(MqttBroadcastException::class, 'is missing required key [host]');
 
     test('it throws exception when host is null', function () {
         $this->validConfig['host'] = null;
 
         MqttConnectionConfig::fromArray($this->validConfig);
-    })->throws(MqttBroadcastException::class, 'missing configuration for key: host');
+    })->throws(MqttBroadcastException::class, 'is missing required key [host]');
 
     test('it throws exception when port is missing', function () {
         unset($this->validConfig['port']);
 
         MqttConnectionConfig::fromArray($this->validConfig);
-    })->throws(MqttBroadcastException::class, 'missing configuration for key: port');
+    })->throws(MqttBroadcastException::class, 'is missing required key [port]');
 });
 
 describe('MqttConnectionConfig → Port Validation', function () {
