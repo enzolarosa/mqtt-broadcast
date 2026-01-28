@@ -45,11 +45,24 @@ abstract class MqttListener implements ListenerInterface, ShouldQueue
         }
 
         $message = $event->getMessage();
-        $obj = json_decode($message);
 
         // MqttListener is designed for JSON messages only
-        // If message is not valid JSON object, skip processing
+        // If message is not valid JSON, log warning and skip processing
         // For non-JSON messages, listen to MqttMessageReceived event directly
+        try {
+            $obj = json_decode($message, false, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            logger()->warning('Invalid JSON in MQTT message', [
+                'broker' => $broker,
+                'topic' => $topic,
+                'message' => substr($message, 0, 200), // First 200 chars to avoid log flooding
+                'error' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
+        // Ensure decoded value is an object (JSON objects only)
         if (! is_object($obj)) {
             return;
         }

@@ -49,11 +49,11 @@ class MqttBroadcastServiceProvider extends ServiceProvider
             if (method_exists($this, 'publishesMigrations')) {
                 $this->publishesMigrations([
                     __DIR__.'/../database/migrations' => database_path('migrations'),
-                ], 'nova-migrations');
+                ], 'mqtt-broadcast-migrations');
             } else {
                 $this->publishes([
                     __DIR__.'/../database/migrations' => database_path('migrations'),
-                ], 'nova-migrations');
+                ], 'mqtt-broadcast-migrations');
             }
         }
     }

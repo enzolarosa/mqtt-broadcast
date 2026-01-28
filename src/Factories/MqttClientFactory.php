@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace enzolarosa\MqttBroadcast\Factories;
 
 use enzolarosa\MqttBroadcast\Exceptions\MqttBroadcastException;
+use enzolarosa\MqttBroadcast\Support\MqttConnectionConfig;
 use Illuminate\Support\Str;
 use PhpMqtt\Client\ConnectionSettings;
 use PhpMqtt\Client\MqttClient;
@@ -28,31 +29,29 @@ class MqttClientFactory
         ?string $clientId = null,
         ?bool $cleanSession = null
     ): MqttClient {
-        $config = config("mqtt-broadcast.connections.{$connection}");
+        // Use new validated config object internally
+        $config = MqttConnectionConfig::fromConnection($connection);
 
-        throw_if(
-            is_null($config),
-            MqttBroadcastException::connectionNotConfigured($connection)
-        );
+        return $this->createFromConfig($config, $clientId);
+    }
 
-        // Validate required configuration keys
-        throw_if(
-            !isset($config['host']),
-            MqttBroadcastException::connectionMissingConfiguration($connection, 'host')
-        );
-
-        throw_if(
-            !isset($config['port']),
-            MqttBroadcastException::connectionMissingConfiguration($connection, 'port')
-        );
-
+    /**
+     * Create a new MQTT client from a validated config object.
+     *
+     * This is the preferred method as it uses type-safe, validated configuration.
+     *
+     * @param MqttConnectionConfig $config Validated connection configuration
+     * @param string|null $clientId Custom client ID (null = use config or generate UUID)
+     * @return MqttClient Configured but not connected client
+     */
+    public function createFromConfig(
+        MqttConnectionConfig $config,
+        ?string $clientId = null
+    ): MqttClient {
         // Determine client ID: custom > config > UUID
-        $clientId = $clientId ?? $config['clientId'] ?? Str::uuid()->toString();
+        $clientId = $clientId ?? $config->clientId() ?? Str::uuid()->toString();
 
-        $server = $config['host'];
-        $port = $config['port'];
-
-        $mqtt = new MqttClient($server, $port, $clientId);
+        $mqtt = new MqttClient($config->host(), $config->port(), $clientId);
 
         // Store connection settings for later use when connect() is called
         // Note: We don't call connect() here - the caller decides when to connect
@@ -73,15 +72,27 @@ class MqttClientFactory
      */
     public function getConnectionSettings(string $connection, ?bool $cleanSession = null): array
     {
-        $config = config("mqtt-broadcast.connections.{$connection}");
+        // Use new validated config object internally
+        $config = MqttConnectionConfig::fromConnection($connection);
 
-        throw_if(
-            is_null($config),
-            MqttBroadcastException::connectionNotConfigured($connection)
-        );
+        return $this->getConnectionSettingsFromConfig($config, $cleanSession);
+    }
 
+    /**
+     * Get connection settings from a validated config object.
+     *
+     * This is the preferred method as it uses type-safe, validated configuration.
+     *
+     * @param MqttConnectionConfig $config Validated connection configuration
+     * @param bool|null $cleanSession Custom clean session (null = use config)
+     * @return array{settings: ConnectionSettings|null, cleanSession: bool}
+     */
+    public function getConnectionSettingsFromConfig(
+        MqttConnectionConfig $config,
+        ?bool $cleanSession = null
+    ): array {
         // If no auth, return null settings
-        if (!($config['auth'] ?? false)) {
+        if (!$config->requiresAuth()) {
             return [
                 'settings' => null,
                 'cleanSession' => false,
@@ -89,15 +100,15 @@ class MqttClientFactory
         }
 
         $connectionSettings = (new ConnectionSettings)
-            ->setKeepAliveInterval($config['alive_interval'] ?? 60)
-            ->setConnectTimeout($config['timeout'] ?? 3)
-            ->setUseTls($config['use_tls'] ?? true)
-            ->setTlsSelfSignedAllowed($config['self_signed_allowed'] ?? true)
-            ->setUsername($config['username'])
-            ->setPassword($config['password']);
+            ->setKeepAliveInterval($config->aliveInterval())
+            ->setConnectTimeout($config->timeout())
+            ->setUseTls($config->useTls())
+            ->setTlsSelfSignedAllowed($config->selfSignedAllowed())
+            ->setUsername($config->username())
+            ->setPassword($config->password());
 
-        // Determine clean session: custom > config > false
-        $cleanSession = $cleanSession ?? $config['clean_session'] ?? false;
+        // Determine clean session: custom > config
+        $cleanSession = $cleanSession ?? $config->cleanSession();
 
         return [
             'settings' => $connectionSettings,

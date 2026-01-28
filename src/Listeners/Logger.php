@@ -31,9 +31,10 @@ class Logger implements ShouldQueue
         $rawMessage = $event->getMessage();
 
         // Try to decode as JSON, but store raw if not valid
-        $message = json_decode($rawMessage);
-
-        if ($message === null && json_last_error() !== JSON_ERROR_NONE) {
+        try {
+            $message = json_decode($rawMessage, false, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            // Not valid JSON - store raw message as-is
             $message = $rawMessage;
         }
 
