@@ -759,7 +759,270 @@ Integration tests run automatically on GitHub Actions with Mosquitto service con
 
 For more details, see [tests/README.md](tests/README.md).
 
+## FAQ
+
+### How to install MQTT in Laravel?
+
+Install via Composer:
+```bash
+composer require enzolarosa/mqtt-broadcast
+php artisan migrate
+```
+
+Then configure your broker in `.env`:
+```env
+MQTT_HOST=127.0.0.1
+MQTT_PORT=1883
+```
+
+Start the subscriber:
+```bash
+php artisan mqtt-broadcast
+```
+
+See [Quick Start](#quick-start) for complete installation guide.
+
+### What is the best Laravel MQTT package?
+
+MQTT Broadcast is a production-ready Laravel package using the proven **Laravel Horizon supervisor pattern**. It provides:
+
+- ✅ Automatic reconnection with exponential backoff
+- ✅ Multiple broker support for redundancy
+- ✅ Real-time monitoring dashboard
+- ✅ Graceful shutdown and signal handling
+- ✅ Memory management and auto-restart
+- ✅ 356 tests (327 unit + 29 integration)
+- ✅ Battle-tested in production environments
+
+### How to connect ESP32 to Laravel?
+
+1. **Laravel side:** Install MQTT Broadcast and start subscriber
+2. **ESP32 side:** Use PubSubClient library to publish messages
+
+Complete tutorial: [IoT Temperature Monitoring Example](examples/iot-temperature-monitor/README.md)
+
+Quick ESP32 code:
+```cpp
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void setup() {
+  WiFi.begin("SSID", "password");
+  client.setServer("192.168.1.100", 1883);
+}
+
+void loop() {
+  client.publish("sensors/temp", "25.5");
+  delay(5000);
+}
+```
+
+### How to use MQTT with Laravel IoT projects?
+
+MQTT Broadcast is perfect for IoT projects:
+
+**Supported devices:**
+- ESP32, ESP8266
+- Arduino with WiFi/Ethernet
+- Raspberry Pi
+- Industrial PLCs
+- Smart home devices
+
+**Common use cases:**
+- Temperature/humidity monitoring
+- Industrial automation (Industry 4.0)
+- Smart home control
+- Fleet tracking
+- Environmental sensors
+
+See [examples/iot-temperature-monitor](examples/iot-temperature-monitor/) for a complete working example.
+
+### How does Laravel MQTT Broadcast compare to other packages?
+
+| Feature | MQTT Broadcast | Other Packages |
+|---------|---------------|----------------|
+| Supervisor Architecture | ✅ Horizon-style | ❌ Simple loops |
+| Auto-reconnection | ✅ Exponential backoff | ⚠️ Basic retry |
+| Multiple Brokers | ✅ Simultaneous | ❌ Single only |
+| Graceful Shutdown | ✅ SIGTERM handling | ❌ Force kill |
+| Memory Management | ✅ Auto-restart | ❌ Manual restart |
+| Real-time Dashboard | ✅ React 19 | ❌ No dashboard |
+| Tests | ✅ 356 tests | ⚠️ Limited |
+
+### How to deploy Laravel MQTT to production?
+
+Use Supervisor to keep the subscriber running:
+
+```ini
+[program:mqtt-broadcast]
+command=php /var/www/html/artisan mqtt-broadcast
+autostart=true
+autorestart=true
+user=www-data
+redirect_stderr=true
+stdout_logfile=/var/www/html/storage/logs/mqtt-broadcast.log
+```
+
+Reload Supervisor:
+```bash
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start mqtt-broadcast
+```
+
+See [Production Deployment Guide](#production-deployment) for complete instructions.
+
+### Can I use multiple MQTT brokers?
+
+Yes! Configure multiple brokers for redundancy:
+
+```php
+'connections' => [
+    'primary' => [
+        'host' => 'mqtt-primary.example.com',
+        'port' => 8883,
+        'use_tls' => true,
+    ],
+    'backup' => [
+        'host' => 'mqtt-backup.example.com',
+        'port' => 8883,
+        'use_tls' => true,
+    ],
+],
+
+'environments' => [
+    'production' => ['primary', 'backup'],
+],
+```
+
+The supervisor will connect to both brokers simultaneously.
+
+### How to secure MQTT with TLS/SSL?
+
+Enable TLS in configuration:
+
+```php
+'connections' => [
+    'secure' => [
+        'host' => 'mqtt.example.com',
+        'port' => 8883,
+        'use_tls' => true,
+        'username' => 'user',
+        'password' => 'secure_password',
+    ],
+],
+```
+
+Or in `.env`:
+```env
+MQTT_HOST=mqtt.example.com
+MQTT_PORT=8883
+MQTT_USE_TLS=true
+MQTT_USERNAME=user
+MQTT_PASSWORD=secure_password
+```
+
+### What MQTT brokers are supported?
+
+All standard MQTT brokers are supported:
+
+**Self-hosted:**
+- Mosquitto (recommended)
+- EMQX
+- VerneMQ
+- HiveMQ Community Edition
+
+**Cloud services:**
+- AWS IoT Core
+- Azure IoT Hub
+- HiveMQ Cloud
+- CloudMQTT
+
+**Requirements:**
+- MQTT 3.1.1 protocol
+- Standard ports (1883 for plain, 8883 for TLS)
+
+### How to handle high-volume MQTT messages?
+
+For high-volume systems:
+
+1. **Increase memory limit:**
+```php
+'memory' => [
+    'threshold_mb' => 512,
+    'gc_interval' => 500,
+],
+```
+
+2. **Use dedicated queues:**
+```env
+MQTT_JOB_QUEUE=mqtt-high-volume
+MQTT_LISTENER_QUEUE=mqtt-processing
+```
+
+3. **Scale queue workers:**
+```bash
+php artisan queue:work --queue=mqtt-high-volume --processes=4
+```
+
+4. **Disable logging** if not needed:
+```env
+MQTT_LOG_ENABLE=false
+```
+
+### Does it work with Laravel 9/10/11?
+
+Yes! MQTT Broadcast supports:
+
+- ✅ Laravel 11.x (latest)
+- ✅ Laravel 10.x
+- ✅ Laravel 9.x
+- ✅ PHP 8.1, 8.2, 8.3
+
+### How to monitor MQTT connections?
+
+Use the built-in dashboard:
+
+1. Access: `http://your-app.test/mqtt-broadcast`
+2. View real-time metrics:
+   - Messages per minute/hour/day
+   - Broker connection status
+   - Memory usage
+   - Queue pending jobs
+   - Recent messages log
+
+Configure authentication in production:
+```php
+Gate::define('viewMqttBroadcast', fn($user) => $user->isAdmin());
+```
+
+### More questions?
+
+- 📖 [Read Full Documentation](https://github.com/enzolarosa/mqtt-broadcast)
+- 💬 [Ask in Discussions](https://github.com/enzolarosa/mqtt-broadcast/discussions)
+- 🐛 [Report an Issue](https://github.com/enzolarosa/mqtt-broadcast/issues)
+
 ## Documentation
+
+### 📚 Comprehensive Guides
+
+**Getting Started:**
+- [Getting Started Guide](https://enzolarosa.dev/docs/mqtt-broadcast-getting-started) - Complete installation and setup
+- [Configuration Guide](https://enzolarosa.dev/docs/mqtt-broadcast-configuration) - All configuration options explained
+- [Production Deployment](https://enzolarosa.dev/docs/mqtt-broadcast-production-deployment) - Deploy with Supervisor
+
+**Tutorials:**
+- [IoT Temperature Monitoring](https://enzolarosa.dev/tutorials/iot-temperature-monitoring-laravel-esp32) - Complete end-to-end example with ESP32
+
+**🇮🇹 Guide in Italiano:**
+- [Guida Rapida](https://enzolarosa.dev/it/docs/mqtt-broadcast-guida-rapida) - Installazione e setup completo
+- [Guida Configurazione](https://enzolarosa.dev/it/docs/mqtt-broadcast-configurazione) - Tutte le opzioni di configurazione
+- [Monitoraggio Temperatura IoT](https://enzolarosa.dev/it/tutorials/monitoraggio-temperatura-iot-laravel-esp32) - Esempio completo con ESP32
+
+### 📖 GitHub Documentation
 
 - [Architecture Guide](docs/ARCHITECTURE.md) - Detailed architecture explanation
 - [Testing Guide](tests/README.md) - Complete testing documentation
@@ -767,6 +1030,7 @@ For more details, see [tests/README.md](tests/README.md).
 - [Changelog](CHANGELOG.md) - Version history
 - [Testing Limitations](docs/TESTING_LIMITATIONS.md) - Test coverage details
 - [Horizon Pattern Analysis](docs/HORIZON_PATTERN_ANALYSIS.md) - Design decisions
+- [GitHub Wiki](https://github.com/enzolarosa/mqtt-broadcast/wiki) - Community documentation
 
 ## Contributing
 
