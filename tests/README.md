@@ -148,3 +148,17 @@ export MQTT_PORT=1883
 # Run tests
 vendor/bin/pest
 ```
+
+## Mosquitto Versions
+
+### Local Development (Docker Compose)
+- Uses **Mosquitto 2.0** with custom config
+- Config file: `tests/fixtures/mosquitto.conf`
+- Allows anonymous connections for testing
+
+### GitHub Actions (CI)
+- Uses **Mosquitto 2.0** with inline configuration
+- Config created in workflow step (no volume mount issues)
+- Allows anonymous connections for testing
+
+Both use Mosquitto 2.0 for consistency between local and CI environments.

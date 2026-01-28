@@ -10,31 +10,6 @@ jobs:
   integration:
     runs-on: ubuntu-latest
 
-    services:
-      mosquitto:
-        image: eclipse-mosquitto:2.0
-        ports:
-          - 1883:1883
-          - 9001:9001
-        volumes:
-          - ${{ github.workspace }}/tests/fixtures/mosquitto.conf:/mosquitto/config/mosquitto.conf
-        options: >-
-          --health-cmd "mosquitto_sub -h localhost -t '$$SYS/#' -C 1 -W 2 || exit 1"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 5
-          --health-start-period 10s
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 3s
-          --health-timeout 2s
-          --health-retries 5
-
     strategy:
       fail-fast: false
       matrix:
@@ -63,20 +38,56 @@ jobs:
           echo "::add-matcher::${{ runner.tool_cache }}/php.json"
           echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
 
+      - name: Start Redis
+        run: |
+          docker run -d \
+            --name redis-test \
+            -p 6379:6379 \
+            --health-cmd "redis-cli ping" \
+            --health-interval 3s \
+            --health-timeout 2s \
+            --health-retries 5 \
+            redis:7-alpine
+
+          echo "Waiting for Redis..."
+          timeout 30 bash -c 'until nc -z 127.0.0.1 6379; do sleep 1; done'
+          echo "✓ Redis is ready"
+
+      - name: Start Mosquitto
+        run: |
+          # Create mosquitto config inline
+          mkdir -p /tmp/mosquitto-config
+          cat > /tmp/mosquitto-config/mosquitto.conf << 'EOFCONFIG'
+          # Mosquitto configuration for GitHub Actions
+          allow_anonymous true
+          listener 1883
+          persistence false
+          log_dest stdout
+          log_type all
+          EOFCONFIG
+
+          # Start Mosquitto with config
+          docker run -d \
+            --name mosquitto-test \
+            -p 1883:1883 \
+            -v /tmp/mosquitto-config/mosquitto.conf:/mosquitto/config/mosquitto.conf \
+            eclipse-mosquitto:2.0
+
+          echo "Waiting for Mosquitto..."
+          sleep 3
+          timeout 30 bash -c 'until nc -z 127.0.0.1 1883; do sleep 1; done'
+          echo "✓ Mosquitto is ready"
+
+      - name: Verify services
+        run: |
+          docker ps
+          nc -zv 127.0.0.1 1883
+          nc -zv 127.0.0.1 6379
+
       - name: Install dependencies
         run: |
           composer require "laravel/framework:${{ matrix.laravel }}" "orchestra/testbench:${{ matrix.testbench }}" --no-interaction --no-update
           composer update --${{ matrix.stability }} --prefer-dist --no-interaction
-
-      - name: Wait for Mosquitto
-        run: |
-          timeout 30 bash -c 'until nc -z 127.0.0.1 1883; do sleep 1; done'
-          echo "Mosquitto is ready"
-
-      - name: Wait for Redis
-        run: |
-          timeout 30 bash -c 'until nc -z 127.0.0.1 6379; do sleep 1; done'
-          echo "Redis is ready"
 
       - name: Execute integration tests
         env:
@@ -95,3 +106,17 @@ jobs:
           REDIS_HOST: "127.0.0.1"
           REDIS_PORT: "6379"
         run: vendor/bin/pest --no-coverage
+
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          echo "=== Mosquitto logs ==="
+          docker logs mosquitto-test || true
+          echo "=== Redis logs ==="
+          docker logs redis-test || true
+
+      - name: Cleanup containers
+        if: always()
+        run: |
+          docker stop mosquitto-test redis-test || true
+          docker rm mosquitto-test redis-test || true
