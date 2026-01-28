@@ -274,4 +274,29 @@ return [
     |
     */
     'password' => env('MQTT_MASTER_PASS', Illuminate\Support\Str::random(32)),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Dashboard & HTTP Routes
+    |--------------------------------------------------------------------------
+    |
+    | Configure the HTTP routes for health check endpoint and future dashboard.
+    | Following Laravel Horizon's pattern, you can customize the path, domain,
+    | and middleware for the MQTT Broadcast routes.
+    |
+    */
+
+    // Domain to serve the dashboard on (null = any domain)
+    'domain' => env('MQTT_BROADCAST_DOMAIN', null),
+
+    // Path prefix for all MQTT Broadcast routes
+    // Health check will be available at: /{path}/api/health
+    // Example: /mqtt-broadcast/api/health (default)
+    'path' => env('MQTT_BROADCAST_PATH', 'mqtt-broadcast'),
+
+    // Middleware applied to all MQTT Broadcast routes
+    // Default: ['web', Authorize::class]
+    // The Authorize middleware allows access in 'local' environment,
+    // and checks the 'viewMqttBroadcast' gate in other environments.
+    'middleware' => ['web', \enzolarosa\MqttBroadcast\Http\Middleware\Authorize::class],
 ];
