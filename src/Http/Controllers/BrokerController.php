@@ -27,14 +27,23 @@ class BrokerController extends Controller
     {
         $brokers = $brokerRepository->all()->map(function ($broker) {
             $isActive = $broker->last_heartbeat_at > now()->subMinutes(2);
-            $uptime = $broker->started_at ? now()->diffInSeconds($broker->started_at) : 0;
+            $uptime = $broker->started_at ? (int) $broker->started_at->diffInSeconds(now()) : 0;
+
+            // Determine connection status
+            $connectionStatus = $this->determineConnectionStatus($broker);
 
             // Count messages for this broker (if logging enabled)
             $messageCount = 0;
+            $lastMessageAt = null;
             if (config('mqtt-broadcast.logs.enable', false)) {
                 $messageCount = MqttLogger::where('broker', $broker->connection)
                     ->where('created_at', '>', now()->subDay())
                     ->count();
+
+                $lastMessage = MqttLogger::where('broker', $broker->connection)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                $lastMessageAt = $lastMessage?->created_at?->toIso8601String();
             }
 
             return [
@@ -43,9 +52,11 @@ class BrokerController extends Controller
                 'connection' => $broker->connection,
                 'pid' => $broker->pid,
                 'status' => $isActive ? 'active' : 'stale',
+                'connection_status' => $connectionStatus,
                 'working' => $broker->working,
                 'started_at' => $broker->started_at?->toIso8601String(),
                 'last_heartbeat_at' => $broker->last_heartbeat_at?->toIso8601String(),
+                'last_message_at' => $lastMessageAt,
                 'uptime_seconds' => $uptime,
                 'uptime_human' => $this->formatUptime($uptime),
                 'messages_24h' => $messageCount,
@@ -75,7 +86,7 @@ class BrokerController extends Controller
         }
 
         $isActive = $broker->last_heartbeat_at > now()->subMinutes(2);
-        $uptime = $broker->started_at ? now()->diffInSeconds($broker->started_at) : 0;
+        $uptime = $broker->started_at ? (int) $broker->started_at->diffInSeconds(now()) : 0;
 
         // Get recent messages for this broker
         $recentMessages = [];
@@ -144,5 +155,39 @@ class BrokerController extends Controller
         }
 
         return $message;
+    }
+
+    /**
+     * Determine connection status based on heartbeat and working state.
+     *
+     * Status levels:
+     * - connected: Active heartbeat + working
+     * - idle: Active heartbeat but not working (paused)
+     * - reconnecting: Recent heartbeat but stale (30s-2min)
+     * - disconnected: Very stale heartbeat (>2min)
+     */
+    protected function determineConnectionStatus($broker): string
+    {
+        $heartbeatAge = $broker->last_heartbeat_at
+            ? $broker->last_heartbeat_at->diffInSeconds(now())
+            : PHP_INT_MAX;
+
+        // Active and working
+        if ($heartbeatAge < 30 && $broker->working) {
+            return 'connected';
+        }
+
+        // Active but paused
+        if ($heartbeatAge < 30 && ! $broker->working) {
+            return 'idle';
+        }
+
+        // Recently active (might be reconnecting)
+        if ($heartbeatAge < 120) {
+            return 'reconnecting';
+        }
+
+        // Very stale
+        return 'disconnected';
     }
 }

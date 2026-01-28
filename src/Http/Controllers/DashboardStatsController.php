@@ -121,6 +121,6 @@ class DashboardStatsController extends Controller
             return 0;
         }
 
-        return now()->diffInSeconds(\Carbon\Carbon::parse($startedAt), false);
+        return (int) now()->diffInSeconds(\Carbon\Carbon::parse($startedAt), false);
     }
 }
