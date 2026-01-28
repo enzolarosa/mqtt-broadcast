@@ -17,6 +17,7 @@ class MqttBroadcastServiceProvider extends ServiceProvider
         $this->registerEvents();
         $this->registerRoutes();
         $this->registerGate();
+        $this->registerViews();
         $this->offerPublishing();
         $this->registerCommands();
     }
@@ -137,5 +138,16 @@ class MqttBroadcastServiceProvider extends ServiceProvider
             // By default, deny access - users must explicitly allow in their provider
             return false;
         });
+    }
+
+    /**
+     * Register the package views.
+     *
+     * Loads Blade views from the resources/views directory with the
+     * 'mqtt-broadcast' namespace for the dashboard UI.
+     */
+    protected function registerViews(): void
+    {
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'mqtt-broadcast');
     }
 }
