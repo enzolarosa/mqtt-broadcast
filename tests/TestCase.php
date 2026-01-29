@@ -21,6 +21,9 @@ class TestCase extends Orchestra
 
     protected function getEnvironmentSetUp($app): void
     {
+        // Set application key for encryption
+        config()->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
+
         config()->set('database.default', 'testing');
         config()->set('database.connections.testing', [
             'driver' => 'sqlite',
@@ -106,5 +109,24 @@ class TestCase extends Orchestra
         $property->setAccessible(true);
 
         return $property->getValue($object);
+    }
+
+    /**
+     * Check if a real MQTT broker is available for integration tests.
+     */
+    protected function brokerAvailable(): bool
+    {
+        return \Tests\Support\BrokerAvailability::isAvailable();
+    }
+
+    /**
+     * Skip test if real MQTT broker is not available.
+     */
+    protected function requiresBroker(): void
+    {
+        if (! $this->brokerAvailable()) {
+            $reason = \Tests\Support\BrokerAvailability::getUnavailableReason();
+            $this->markTestSkipped($reason ?? 'MQTT broker not available');
+        }
     }
 }
