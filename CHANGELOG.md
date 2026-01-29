@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.5] - 2026-01-29
+
+### Fixed
+
+- **Terminate Command**: Fixed "Is a directory" error when running `mqtt-broadcast:terminate`
+  - Added file type check in `MasterSupervisorRepository::getFileKeys()`
+  - Skip directories when reading cache files
+  - Prevents `file_get_contents()` from attempting to read directories
+
+---
+
 ## [3.1.4] - 2026-01-29
 
 ### Fixed
