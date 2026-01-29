@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.4] - 2026-01-29
+
+### Fixed
+
+- **Asset Publishing Path**: Fixed incorrect nesting of published assets
+  - Assets now correctly published to `public/vendor/mqtt-broadcast/`
+  - Previously were incorrectly nested in `public/vendor/mqtt-broadcast/vendor/mqtt-broadcast/`
+
+---
+
 ## [3.1.3] - 2026-01-29
 
 ### 🔧 Installation & Asset Management

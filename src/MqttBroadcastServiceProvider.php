@@ -66,7 +66,7 @@ class MqttBroadcastServiceProvider extends ServiceProvider
             ], 'mqtt-broadcast-config');
 
             $this->publishes([
-                __DIR__.'/../public' => public_path('vendor/mqtt-broadcast'),
+                __DIR__.'/../public/vendor/mqtt-broadcast' => public_path('vendor/mqtt-broadcast'),
             ], ['mqtt-broadcast-assets', 'laravel-assets']);
 
             // Migrations are loaded automatically via loadMigrationsFrom()
