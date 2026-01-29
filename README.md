@@ -41,14 +41,12 @@ MQTT Broadcast includes a **beautiful real-time monitoring dashboard** built wit
 
 **Local development:** Dashboard is always accessible (no authentication required).
 
-**Production:** Configure access control with Laravel Gates:
+**Production:** Configure access control in `app/Providers/MqttBroadcastServiceProvider.php`:
 
 ```php
-// app/Providers/AuthServiceProvider.php
+// app/Providers/MqttBroadcastServiceProvider.php
 
-use Illuminate\Support\Facades\Gate;
-
-public function boot(): void
+protected function registerGate(): void
 {
     Gate::define('viewMqttBroadcast', function ($user) {
         return in_array($user->email, [
@@ -58,11 +56,13 @@ public function boot(): void
     });
 
     // Or check by role
-    Gate::define('viewMqttBroadcast', function ($user) {
-        return $user->hasRole('admin');
-    });
+    // Gate::define('viewMqttBroadcast', function ($user) {
+    //     return $user->hasRole('admin');
+    // });
 }
 ```
+
+> **Note:** The `MqttBroadcastServiceProvider` is published when you run `php artisan mqtt-broadcast:install`.
 
 **Customize dashboard path:**
 
@@ -105,16 +105,22 @@ Get up and running in 2 minutes:
 composer require enzolarosa/mqtt-broadcast
 ```
 
-**2. Run migrations (auto-discovered):**
+**2. Install the package resources:**
+
+```bash
+php artisan mqtt-broadcast:install
+```
+
+This will:
+- Publish the configuration file to `config/mqtt-broadcast.php`
+- Publish the service provider to `app/Providers/MqttBroadcastServiceProvider.php`
+- Publish dashboard assets to `public/vendor/mqtt-broadcast/`
+- Register the service provider in your application
+
+**3. Run migrations:**
 
 ```bash
 php artisan migrate
-```
-
-**3. Publish config:**
-
-```bash
-php artisan vendor:publish --tag="mqtt-broadcast-config"
 ```
 
 **4. Configure your MQTT broker in `.env`:**
@@ -128,13 +134,28 @@ MQTT_USERNAME=your_username
 MQTT_PASSWORD=your_password
 ```
 
-**5. Start the subscriber:**
+**5. Authorize dashboard access (production only):**
+
+Edit `app/Providers/MqttBroadcastServiceProvider.php` to control who can access the dashboard:
+
+```php
+protected function registerGate(): void
+{
+    Gate::define('viewMqttBroadcast', function ($user) {
+        return in_array($user->email, [
+            'admin@example.com',
+        ]);
+    });
+}
+```
+
+**6. Start the subscriber:**
 
 ```bash
 php artisan mqtt-broadcast
 ```
 
-**6. Listen to messages in your code:**
+**7. Listen to messages in your code:**
 
 ```php
 // app/Providers/EventServiceProvider.php or routes/console.php
@@ -151,7 +172,7 @@ Event::listen(MqttMessageReceived::class, function ($event) {
 });
 ```
 
-**7. View the dashboard:**
+**8. View the dashboard:**
 
 Open `http://your-app.test/mqtt-broadcast` to see real-time monitoring!
 

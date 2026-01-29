@@ -16,8 +16,9 @@
         };
     </script>
 
-    {{-- Vite assets will be injected here --}}
-    @vite(['resources/js/mqtt-dashboard/src/main.tsx', 'resources/css/mqtt-dashboard.css'])
+    {{-- Dashboard assets --}}
+    {!! enzolarosa\MqttBroadcast\MqttBroadcast::css() !!}
+    {!! enzolarosa\MqttBroadcast\MqttBroadcast::js() !!}
 </head>
 <body>
     {{-- React app mount point --}}

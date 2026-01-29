@@ -65,6 +65,10 @@ class MqttBroadcastServiceProvider extends ServiceProvider
                 __DIR__.'/../config/mqtt-broadcast.php' => config_path('mqtt-broadcast.php'),
             ], 'mqtt-broadcast-config');
 
+            $this->publishes([
+                __DIR__.'/../public' => public_path('vendor/mqtt-broadcast'),
+            ], ['mqtt-broadcast-assets', 'laravel-assets']);
+
             // Migrations are loaded automatically via loadMigrationsFrom()
             // No need to publish them (following Horizon's approach)
             // Users simply run: php artisan migrate
@@ -75,6 +79,7 @@ class MqttBroadcastServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->commands([
+                Commands\InstallCommand::class,
                 Commands\MqttBroadcastCommand::class,
                 Commands\MqttBroadcastTerminateCommand::class,
                 Commands\MqttBroadcastTestCommand::class,
