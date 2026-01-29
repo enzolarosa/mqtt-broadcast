@@ -136,6 +136,11 @@ class BrokerSupervisor implements Terminable, Pausable
             output: fn (string $type, string $message) => $this->output($type, "[$this->brokerName] $message"),
             onRestart: null // BrokerSupervisor doesn't auto-restart, only logs
         );
+
+        // Register this broker in the database
+        // This ensures the broker is tracked for health monitoring and terminate commands
+        // Following Horizon pattern: supervisor self-registers on instantiation
+        $this->repository->create($this->brokerName, $this->connection);
     }
 
     /**

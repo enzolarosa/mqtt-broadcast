@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Cache;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    // Skip all tests in this file if no real MQTT broker available
+    $this->requiresBroker();
+
     // Use array cache driver for tests (avoids database cache table issues)
     config(['cache.default' => 'array']);
     Cache::flush();
@@ -200,7 +203,7 @@ test('command starts as real background process', function () {
 
     proc_close($process['handle']);
     unset($this->processHandle);
-})->skip('Requires real MQTT broker or full mock implementation');
+});
 
 /**
  * INTEGRATION TEST 2: Process responds to SIGTERM gracefully
@@ -234,7 +237,7 @@ test('process responds to SIGTERM signal gracefully', function () {
 
     proc_close($process['handle']);
     unset($this->processHandle);
-})->skip('Requires real MQTT broker or full mock implementation');
+});
 
 /**
  * INTEGRATION TEST 3: Process cleans up cache on termination
@@ -266,7 +269,7 @@ test('process cleans up cache on graceful termination', function () {
 
     proc_close($process['handle']);
     unset($this->processHandle);
-})->skip('Requires real MQTT broker or full mock implementation');
+});
 
 /**
  * INTEGRATION TEST 4: Process cleans up database on termination
@@ -297,7 +300,7 @@ test('process cleans up database records on graceful termination', function () {
 
     proc_close($process['handle']);
     unset($this->processHandle);
-})->skip('Requires real MQTT broker or full mock implementation');
+});
 
 /**
  * INTEGRATION TEST 5: Process can be killed with SIGKILL
@@ -323,7 +326,7 @@ test('process can be forcefully killed with SIGKILL', function () {
 
     proc_close($process['handle']);
     unset($this->processHandle);
-})->skip('Requires real MQTT broker or full mock implementation');
+});
 
 /**
  * INTEGRATION TEST 6: Multiple processes cannot run on same machine
@@ -360,7 +363,7 @@ test('second process fails when master already running', function () {
     sendSignalAndWait($process1['handle'], SIGTERM, 5);
     proc_close($process1['handle']);
     unset($this->processHandle);
-})->skip('Requires real MQTT broker or full mock implementation');
+});
 
 /**
  * ============================================================================
@@ -398,7 +401,7 @@ test('process respects environment option', function () {
     sendSignalAndWait($process['handle'], SIGTERM, 5);
     proc_close($process['handle']);
     unset($this->processHandle);
-})->skip('Requires real MQTT broker or full mock implementation');
+});
 
 /**
  * INTEGRATION TEST 8: Process fails gracefully with invalid environment

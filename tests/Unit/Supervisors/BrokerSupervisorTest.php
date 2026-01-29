@@ -31,6 +31,23 @@ class BrokerSupervisorTest extends TestCase
 
         Event::fake();
 
+        // Mock create() call that happens in BrokerSupervisor constructor
+        // Use a real model instance to avoid Eloquent mock issues
+        $this->repository->shouldReceive('create')
+            ->byDefault()
+            ->andReturnUsing(function ($name, $connection) {
+                $broker = new \enzolarosa\MqttBroadcast\Models\BrokerProcess([
+                    'name' => $name,
+                    'connection' => $connection,
+                    'pid' => getmypid(),
+                    'started_at' => now(),
+                    'last_heartbeat_at' => now(),
+                    'working' => true,
+                ]);
+                $broker->exists = true; // Mark as persisted to avoid DB issues
+                return $broker;
+            });
+
         $this->clientFactory->shouldReceive('getConnectionSettings')
             ->byDefault()
             ->andReturn(['settings' => null, 'cleanSession' => false]);
@@ -63,6 +80,32 @@ class BrokerSupervisorTest extends TestCase
     {
         $supervisor = $this->createSupervisor();
         $this->assertInstanceOf(BrokerSupervisor::class, $supervisor);
+    }
+
+    public function test_it_registers_broker_in_database_on_instantiation(): void
+    {
+        // Expect create() to be called with correct broker name and connection
+        $this->repository->shouldReceive('create')
+            ->once()
+            ->with('test-broker', 'mqtt-test')
+            ->andReturnUsing(function ($name, $connection) {
+                $broker = new \enzolarosa\MqttBroadcast\Models\BrokerProcess([
+                    'name' => $name,
+                    'connection' => $connection,
+                    'pid' => getmypid(),
+                    'started_at' => now(),
+                    'last_heartbeat_at' => now(),
+                    'working' => true,
+                ]);
+                $broker->exists = true;
+                return $broker;
+            });
+
+        // Creating supervisor should trigger repository->create()
+        $supervisor = $this->createSupervisor();
+
+        $this->assertInstanceOf(BrokerSupervisor::class, $supervisor);
+        // Mockery will automatically verify create() was called once
     }
 
     public function test_monitor_connects_when_client_is_null(): void
