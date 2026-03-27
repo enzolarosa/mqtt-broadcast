@@ -309,3 +309,27 @@
   Added: Migration connection behavior — Schema::connection() reads config at migration time, not runtime
   Added: Key Components table expanded with MqttBroadcast class, Facade, Authorize middleware, composer.json entries
   Remaining opportunities: deepen dashboard-frontend, installation-configuration, deprecations-migration, asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs
+
+2026-03-27 | dashboard-frontend deepening
+  Updated: docs/dashboard/dashboard-frontend.md
+  Fixed: TabType was documented as 3 tabs (dashboard/failed-jobs/docs) but actual code only has 2 tabs (dashboard/failed-jobs) — DocsPage.tsx is dead code, not imported by any component
+  Fixed: Component tree showed "docs" tab rendering DocsPage — removed from tree and navigation flow diagram
+  Fixed: window.mqttBroadcast config table — basePath is injected by Blade but NOT declared in TypeScript Window interface, marked as dead property
+  Added: TypeScript vs Blade mismatch — basePath not in TS Window interface, CSRF token injected but not consumed by Axios client
+  Added: usePolling internals — stale closure caveat (fetchFn not in useEffect dependency array), no request deduplication, error preservation behavior, disabled mode early-return
+  Added: Dual logging check — Dashboard uses stats.messages.logging_enabled (API), useMessages/MessageLog use window.mqttBroadcast.loggingEnabled (Blade config), technically independent
+  Added: StatsCard variant mapping table — own variant system (default/success/warning/danger) separate from Badge CVA variants, threshold-based variant selection for each card
+  Added: API client ID type distinction — broker/message use number (auto-increment), failed jobs use string (UUID via HasExternalId)
+  Added: Unused API methods — getBroker(), getMessage(), getTopics(), getMetricsSummary() defined but not called by any component
+  Added: FailedJobs state management — Set<string> per-job tracking, bulkLoading shared state, handleDelete has no try/catch (error handling asymmetry), confirm() for flush
+  Added: ThemeToggle vs useTheme — toggle only supports dark/light (no UI for system mode despite hook supporting it), classList removal prevents accumulation
+  Added: ThroughputChart theming — HSL CSS custom properties for theme-aware Recharts styling
+  Added: Button asChild prop declared but unused (no Slot implementation)
+  Added: Hardcoded defaults table — message limit 20, failed jobs limit 50, scroll heights, chart height, throughput period
+  Added: BrokerTable empty state with artisan command hint
+  Added: Type system deep-dive — all fields documented with which are displayed vs unused (uptime_seconds, working, created_at_human, retried_at, last_message_at)
+  Added: main.tsx CSS import via relative path traversal, noscript fallback in Blade template
+  Added: Mermaid diagrams — FailedJobs action sequence diagram (showing error handling asymmetry), usePolling stale closure flowchart
+  Added: Fixed navigation state diagram to 2-tab model
+  Added: Error handling table expanded with empty states, root element missing, concurrent poll requests, per-component error rendering
+  Remaining opportunities: deepen installation-configuration, deprecations-migration, asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs
