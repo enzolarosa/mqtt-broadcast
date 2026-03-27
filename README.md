@@ -1031,17 +1031,10 @@ Gate::define('viewMqttBroadcast', fn($user) => $user->isAdmin());
 ### 📚 Comprehensive Guides
 
 **Getting Started:**
-- [Getting Started Guide](https://enzolarosa.dev/docs/mqtt-broadcast-getting-started) - Complete installation and setup
-- [Configuration Guide](https://enzolarosa.dev/docs/mqtt-broadcast-configuration) - All configuration options explained
-- [Production Deployment](https://enzolarosa.dev/docs/mqtt-broadcast-production-deployment) - Deploy with Supervisor
-
-**Tutorials:**
-- [IoT Temperature Monitoring](https://enzolarosa.dev/tutorials/iot-temperature-monitoring-laravel-esp32) - Complete end-to-end example with ESP32
+- [Getting Started Guide](https://docs.tennilab.com/s/mqtt-broadcast) - Complete installation and setup
 
 **🇮🇹 Guide in Italiano:**
-- [Guida Rapida](https://enzolarosa.dev/it/docs/mqtt-broadcast-guida-rapida) - Installazione e setup completo
-- [Guida Configurazione](https://enzolarosa.dev/it/docs/mqtt-broadcast-configurazione) - Tutte le opzioni di configurazione
-- [Monitoraggio Temperatura IoT](https://enzolarosa.dev/it/tutorials/monitoraggio-temperatura-iot-laravel-esp32) - Esempio completo con ESP32
+- [Guida Rapida](https://docs.tennilab.com/s/mqtt-broadcast) - Installazione e setup completo
 
 ### 📖 GitHub Documentation
 
