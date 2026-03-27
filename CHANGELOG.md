@@ -3,6 +3,37 @@
 All notable changes to this project will be documented in this file.
 
 
+## [v3.1.7] - 2026-03-27
+
+### Other
+- update readme (3ed991a)
+- update (7732553)
+- docs: document message-publishing deepening (en + it) (c07dc5e)
+- docs: document dashboard-monitoring deepening (en + it) (6480555)
+- docs: document message-subscription deepening (en + it) (29496cb)
+- docs: document connection-management deepening (en + it) (1a36edc)
+- docs: document process-supervision deepening (en + it) (4e636f1)
+- docs: document testing-infrastructure deepening (en + it) (8201a06)
+- docs: document http-api-reference (en + it) (de1f4fa)
+- docs: document rate-limiting (en + it) (9871f5b)
+- docs: document memory-management (en + it) (359173f)
+- docs: document repository-pattern (en + it) (ee4300e)
+- docs: document connection-management (en + it) (2ae05d2)
+- docs: document asset-pipeline (en + it) (4304cb2)
+- docs: document testing-infrastructure (en + it) (62ec4f9)
+- docs: document deprecations-migration (en + it) (a8d7ff2)
+- docs: document installation-configuration (en + it) (f8c4343)
+- docs: document dashboard-frontend (en + it) (cdf3f28)
+- docs: document package-infrastructure (en + it) (869bfbf)
+- docs: document dead-letter-queue (en + it) (e0a19ef)
+- docs: document artisan-commands (en + it) (d36c78f)
+- docs: document dashboard-monitoring (en + it) (17e7d1e)
+- docs: document message-subscription (en + it) (43f1293)
+- docs: document message-publishing (en + it) (3505597)
+- docs: document process-supervision (en + it) (30b891e)
+- Developer Experience: Complete documentation, SEO strategy, and Ghost-ready articles (#24) (82b3a77)
+- update (#27) (6aa5214)
+
 ## [v3.1.6] - 2026-03-23
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
