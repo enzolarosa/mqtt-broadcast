@@ -40,7 +40,10 @@
         "psr-4": {
             "enzolarosa\\MqttBroadcast\\": "src",
             "enzolarosa\\MqttBroadcast\\Database\\Factories\\": "database/factories"
-        }
+        },
+        "files": [
+            "src/functions.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
@@ -50,7 +53,8 @@
     "scripts": {
         "analyse": "vendor/bin/phpstan analyse",
         "test": "vendor/bin/pest",
-        "test-coverage": "vendor/bin/pest --coverage"
+        "test-coverage": "vendor/bin/pest --coverage",
+        "pint": "vendor/bin/pint"
     },
     "config": {
         "sort-packages": true,

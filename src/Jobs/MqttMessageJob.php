@@ -1,17 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace enzolarosa\MqttBroadcast\Jobs;
 
+use enzolarosa\MqttBroadcast\Exceptions\MqttBroadcastException;
+use enzolarosa\MqttBroadcast\Exceptions\RateLimitExceededException;
+use enzolarosa\MqttBroadcast\Factories\MqttClientFactory;
+use enzolarosa\MqttBroadcast\MqttBroadcast;
+use enzolarosa\MqttBroadcast\Support\RateLimitService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Str;
 use PhpMqtt\Client\Exceptions\ConfigurationInvalidException;
 use PhpMqtt\Client\Exceptions\ConnectingToBrokerFailedException;
 use PhpMqtt\Client\Exceptions\DataTransferException;
-use PhpMqtt\Client\Exceptions\ProtocolNotSupportedException;
 use PhpMqtt\Client\Exceptions\RepositoryException;
 use PhpMqtt\Client\MqttClient;
 
@@ -19,40 +24,136 @@ class MqttMessageJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected string $broker;
-    protected string $topic;
-    protected string $message;
-    protected int $qos;
-    protected static array $clientId;
+    protected int $cachedQos;
 
-    public function __construct(string $topic, string $message, ?string $broker = 'local', int $qos = 0, ?string $clientId = null)
+    protected bool $cachedRetain;
+
+    public function __construct(
+        protected string $topic,
+        protected mixed $message,
+        protected ?string $broker = 'default',
+        protected ?int $qos = null,
+        protected bool $cleanSession = true,
+    ) {
+        // Validation is now handled by MqttClientFactory in handle()
+        // This allows the job to be dispatched successfully and fail
+        // with proper exception handling in the worker
+
+        // Cache config values to avoid repeated calls in handle()
+        $this->cachedQos = $this->qos ?? config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
+        $this->cachedRetain = config('mqtt-broadcast.connections.'.$this->broker.'.retain', false);
+
+        $queue = config('mqtt-broadcast.queue.name');
+        $connection = config('mqtt-broadcast.queue.connection');
+
+        if ($queue) {
+            $this->onQueue($queue);
+        }
+
+        if ($connection) {
+            $this->onConnection($connection);
+        }
+    }
+
+    public function handle(): void
     {
-        $this->topic = $topic;
-        $this->message = $message;
-        $this->qos = $qos;
-        $this->broker = $broker;
+        // Check rate limit before processing (second layer of protection)
+        $this->checkRateLimit();
 
-        self::$clientId[$this->broker] = $clientId ?? Str::uuid();
+        // Fail-fast: If connection config is invalid, fail immediately
+        // without retrying (config errors won't fix themselves)
+        try {
+            $mqtt = $this->mqtt();
+        } catch (MqttBroadcastException $e) {
+            // Configuration error - fail the job without retry
+            $this->fail($e);
+
+            return;
+        }
+
+        try {
+            if (!$mqtt->isConnected()) {
+                $mqtt->connect();
+            }
+
+            if (!is_string($this->message)) {
+                $this->message = json_encode($this->message, JSON_THROW_ON_ERROR);
+            }
+
+            $mqtt->publish(
+                MqttBroadcast::getTopic($this->topic, $this->broker),
+                $this->message,
+                $this->cachedQos,
+                $this->cachedRetain,
+            );
+        } finally {
+            if ($mqtt->isConnected()) {
+                $mqtt->disconnect();
+            }
+        }
     }
 
     /**
-     * Execute the job.
+     * Check rate limit before publishing.
      *
-     * @return void
-     * @throws DataTransferException
-     * @throws ProtocolNotSupportedException
-     * @throws RepositoryException
-     * @throws ConfigurationInvalidException
-     * @throws ConnectingToBrokerFailedException
+     * Handles both 'reject' and 'throttle' strategies.
+     * For 'throttle' strategy, releases the job back to queue with delay.
+     * For 'reject' strategy, attempt() will throw RateLimitExceededException.
      */
-    public function handle()
+    protected function checkRateLimit(): void
     {
-        $server = config("mqtt-broadcast.connections.$this->broker.host");
-        $port = config("mqtt-broadcast.connections.$this->broker.port");
+        $rateLimiter = app(RateLimitService::class);
+        $strategy = config('mqtt-broadcast.rate_limiting.strategy', 'reject');
 
-        $mqtt = new MqttClient($server, $port, self::$clientId[$this->broker]);
-        $mqtt->connect();
-        $mqtt->publish($this->topic, $this->message, $this->qos);
-        $mqtt->disconnect();
+        // If rate limit allows, proceed
+        if ($rateLimiter->allows($this->broker)) {
+            $rateLimiter->hit($this->broker);
+            return;
+        }
+
+        // Rate limit exceeded
+        if ($strategy === 'throttle') {
+            // Calculate delay and requeue the job
+            $delay = $rateLimiter->availableIn($this->broker);
+            $this->release($delay);
+
+            return;
+        }
+
+        // Strategy is 'reject' - let attempt() throw the exception
+        // (it will build the exception with proper context)
+        $rateLimiter->attempt($this->broker);
+    }
+
+    /**
+     * Create and configure MQTT client using factory.
+     *
+     * @throws MqttBroadcastException If connection config is invalid
+     */
+    private function mqtt(): MqttClient
+    {
+        $factory = app(MqttClientFactory::class);
+
+        // Create client with random UUID to avoid conflicts with listener
+        // Listener uses fixed clientId from config, publisher uses random UUID
+        $publisherClientId = \Illuminate\Support\Str::uuid()->toString();
+
+        $client = $factory->create($this->broker, $publisherClientId);
+
+        // Get connection settings for authentication
+        $connectionInfo = $factory->getConnectionSettings(
+            $this->broker,
+            $this->cleanSession
+        );
+
+        // Connect with authentication if required
+        if ($connectionInfo['settings']) {
+            $client->connect(
+                $connectionInfo['settings'],
+                $connectionInfo['cleanSession']
+            );
+        }
+
+        return $client;
     }
 }

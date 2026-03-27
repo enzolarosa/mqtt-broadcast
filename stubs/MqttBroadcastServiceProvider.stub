@@ -1,0 +1,43 @@
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\Facades\Gate;
+use enzolarosa\MqttBroadcast\MqttBroadcastServiceProvider as BaseMqttBroadcastServiceProvider;
+
+class MqttBroadcastServiceProvider extends BaseMqttBroadcastServiceProvider
+{
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        parent::boot();
+
+        // Uncomment to configure custom path
+        // config(['mqtt-broadcast.path' => 'my-mqtt-monitor']);
+
+        // Uncomment to configure custom middleware
+        // config(['mqtt-broadcast.middleware' => ['web', 'auth']]);
+    }
+
+    /**
+     * Register the MQTT Broadcast gate.
+     *
+     * This gate determines who can access MQTT Broadcast in non-local environments.
+     */
+    protected function registerGate(): void
+    {
+        Gate::define('viewMqttBroadcast', function ($user) {
+            return in_array($user->email, [
+                // Add authorized emails here
+                // 'admin@example.com',
+            ]);
+        });
+
+        // Alternative: authorize by role
+        // Gate::define('viewMqttBroadcast', function ($user) {
+        //     return $user->hasRole('admin');
+        // });
+    }
+}
