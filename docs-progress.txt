@@ -33,3 +33,12 @@
   Covered: HealthController (200/503 health check, memory thresholds, individual checks), DashboardStatsController (aggregated stats, broker counts, message throughput, memory usage, uptime), BrokerController (broker list/detail, connection status state machine, uptime formatting, recent messages), MessageLogController (filtered/paginated logs, topic analytics, JSON parsing, message preview), MetricsController (time-series throughput with gap filling, summary with peak detection), Authorize middleware (Gate-based auth, local bypass), BrokerRepository (database CRUD), MasterSupervisorRepository (cache-based state, multi-driver key listing), route registration (configurable prefix/domain/middleware), React SPA catch-all route
   Skipped: sales/ (infrastructure feature, not customer-facing)
   Still needs coverage: Artisan commands (InstallCommand, MqttBroadcastCommand, MqttBroadcastTerminateCommand, MqttBroadcastTestCommand), installation & configuration guide
+
+2026-03-27 | artisan-commands (en + it)
+  Created: docs/en/dev/commands/artisan-commands.md
+  Created: docs/en/po/commands/artisan-commands.md
+  Created: docs/it/dev/commands/artisan-commands.md
+  Created: docs/it/po/commands/artisan-commands.md
+  Covered: InstallCommand (vendor:publish for config/provider/assets, Laravel 10/11+ provider registration, idempotent install), MqttBroadcastCommand (master name generation via ProcessIdentifier, duplicate prevention, environment resolution, fail-fast config validation, MasterSupervisor + BrokerSupervisor creation, SIGINT handler, blocking monitor loop), MqttBroadcastTerminateCommand (hostname-based process filtering, optional broker targeting, SIGTERM signaling, DB + cache cleanup, ESRCH handling, best-effort semantics), MqttBroadcastTestCommand (synchronous publish via facade), ProcessIdentifier (hostname slugification, static token memoization)
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Still needs coverage: installation & configuration guide (comprehensive getting-started guide combining all features)
