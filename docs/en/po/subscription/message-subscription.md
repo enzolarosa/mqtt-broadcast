@@ -19,20 +19,26 @@ The system supports multiple brokers simultaneously, each with its own topic pre
 
 - **Automatic subscription**: the system subscribes to all topics under the configured prefix using an MQTT wildcard — no manual topic registration required.
 - **Broker isolation**: listeners only process messages from their designated broker. A listener configured for broker "local" ignores messages from broker "remote".
-- **Topic filtering**: listeners can target a specific topic or use `*` to receive all messages on their broker.
-- **JSON-only processing (default listeners)**: the built-in listener base class only processes messages with valid JSON object payloads. Non-JSON messages or JSON arrays/scalars are silently skipped.
+- **Topic filtering**: listeners can target a specific topic or use `*` to receive all messages on their broker. Topic matching is exact — MQTT wildcards (`+`, `#`) are not supported at the listener level.
+- **JSON-only processing (custom listeners)**: custom listeners built on the base class only process messages with valid JSON object payloads. Non-JSON messages, JSON arrays, and JSON scalars are silently skipped. This is enforced by the base class, not configurable.
+- **Logger captures everything**: the built-in logger is a separate component that does not follow the same rules as custom listeners. It stores all messages regardless of format — JSON objects, arrays, plain text, or any other payload. This ensures complete audit coverage.
+- **Two listener architectures**: the system supports two distinct listener types. Custom listeners enforce strict JSON filtering and broker/topic matching. The built-in logger bypasses all filtering to ensure complete message capture. Developers must choose which pattern fits their use case.
+- **Pre-processing gate**: custom listeners can include a pre-processing check that runs before message parsing. This allows conditional processing (e.g., skip during maintenance) without modifying the listener's main logic.
 - **Non-blocking processing**: all listener processing happens asynchronously via the queue. The MQTT connection loop is never blocked by slow handlers.
 - **Optional logging**: message logging to the database is disabled by default and must be explicitly enabled. When enabled, both JSON and non-JSON messages are stored.
 - **Error isolation**: if a listener fails, it does not affect other listeners or the MQTT connection. Failed listener jobs follow standard queue retry rules.
+- **UUID-based message identification**: each logged message receives a unique identifier (UUID) for API access. This prevents exposing internal database IDs externally.
 
 ## Edge Cases
 
-- **Invalid JSON payload**: if a message is not valid JSON, the default listener logs a warning and skips it. The built-in logger still stores the raw message.
+- **Invalid JSON payload**: if a message is not valid JSON, custom listeners log a warning (including the first 200 characters of the message for debugging) and skip it. The built-in logger still stores the raw message.
+- **JSON array payload**: if a message is valid JSON but decodes to an array instead of an object, custom listeners silently skip it. The logger stores it normally. This can be surprising if your MQTT devices send array payloads.
 - **Broker disconnection**: if the broker connection drops, the supervisor handles reconnection automatically (see [process supervision](../supervisor/process-supervision.md)). Messages sent during disconnection are lost (MQTT QoS 0) or redelivered by the broker (QoS 1/2).
 - **Listener exception**: if a listener throws an exception during processing, the queue worker marks the job as failed. Other listeners for the same message are unaffected.
 - **High message volume**: since listeners run on the queue, message throughput is limited by the number of queue workers, not the MQTT connection speed. Scale queue workers to handle higher volumes.
 - **Duplicate messages**: with QoS 1 or 2, the MQTT broker may redeliver messages. The system does not deduplicate — listeners must handle idempotency if required.
 - **Empty topic prefix**: if no prefix is configured, the system subscribes to `#` (all topics on the broker). This can produce high message volume on shared brokers.
+- **Pre-processing rejection**: if the pre-processing gate returns false, the message is silently discarded for that listener. No warning is logged and no error is raised.
 
 ## Permissions & Access
 

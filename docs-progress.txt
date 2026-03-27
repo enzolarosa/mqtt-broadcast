@@ -200,3 +200,24 @@
   Added: PO docs expanded with auth opt-in rule, TLS-with-auth-only rule, topic prefixing, retain per-connection, clean session publisher/subscriber distinction, empty prefix edge case, QoS/retain caching edge case
   Skipped: sales/ (infrastructure feature, not customer-facing)
   Remaining opportunities: document MetricsController MySQL-specific DATE_FORMAT() (SQLite compatibility gap), expand MqttListener::preProcessMessage() documentation with parameter signature details
+
+2026-03-27 | message-subscription deepening (en + it)
+  Updated: docs/en/dev/subscription/message-subscription.md
+  Updated: docs/en/po/subscription/message-subscription.md
+  Updated: docs/it/dev/subscription/message-subscription.md
+  Updated: docs/it/po/subscription/message-subscription.md
+  Added: preProcessMessage() full signature (?string $topic = null, ?object $obj = null): bool — documented that handle() calls it with NO args (pre-decode gating), params exist for subclass flexibility
+  Added: Logger vs MqttListener contract distinction — Logger implements ShouldQueue directly (no Listener contract, no filtering), MqttListener implements Listener contract (strict JSON-object filter)
+  Added: Topic matching is exact string compare, not MQTT wildcard matching — only literal '*' is special-cased
+  Added: MqttListener default property values ($handleBroker='local', $topic='*') and viaQueue() routing
+  Added: Logger viaQueue() routing, MqttLogger model details (HasExternalId UUID, configurable connection/table, json cast)
+  Added: MqttMessageReceived::getPid() documentation — not populated by received(), reserved for internal/testing
+  Added: Database schema expanded with external_id UUID column and HasExternalId trait explanation
+  Added: handleMessage() message truncation to 100 chars for logging
+  Added: New Mermaid diagram: Logger vs MqttListener architecture comparison flowchart
+  Added: Enhanced Listener Filtering Pipeline diagram with exact string compare annotations and JSON depth 512
+  Added: FilteredListener example showing preProcessMessage() usage (maintenance window gating)
+  Added: Error handling table expanded with preProcessMessage() returns false scenario
+  Added: PO docs expanded with two listener architectures rule, pre-processing gate, UUID identification, JSON array edge case
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Remaining opportunities: document MetricsController MySQL-specific DATE_FORMAT() (SQLite compatibility gap)

@@ -12,23 +12,25 @@ Key design decisions:
 - **JSON-first with escape hatch**: the abstract `MqttListener` base class assumes JSON payloads and provides topic/broker filtering. For non-JSON messages or custom filtering, listeners can subscribe directly to `MqttMessageReceived`.
 - **Queue-based processing**: all listeners implement `ShouldQueue`, so message handling never blocks the supervisor's MQTT loop.
 - **Wildcard subscription**: each broker subscribes to `prefix#` (or `#` if no prefix), capturing all topics under the configured prefix.
+- **Two listener architectures**: `Logger` implements `ShouldQueue` directly (no filtering, captures everything), while `MqttListener` implements the `Listener` contract (strict JSON-object filtering). This distinction is intentional — the logger is an audit tool, custom listeners are business logic handlers.
 
 ## Architecture
 
 ```
 BrokerSupervisor          MqttBroadcast facade          Laravel Event Dispatcher
-     │                           │                              │
-     │  client->loopOnce()       │                              │
-     │  ──> message arrives      │                              │
-     │                           │                              │
-     │  handleMessage()  ──>  received()  ──>  event(MqttMessageReceived)
-     │                           │                              │
-     │                           │                     ┌────────┴────────┐
-     │                           │                     │                 │
-     │                           │               Logger           MqttListener
-     │                           │            (built-in)          (custom, abstract)
-     │                           │                │                     │
-     │                           │           DB insert            processMessage()
+     |                           |                              |
+     |  client->loopOnce()       |                              |
+     |  --> message arrives      |                              |
+     |                           |                              |
+     |  handleMessage()  -->  received()  -->  event(MqttMessageReceived)
+     |                           |                              |
+     |                           |                     +--------+--------+
+     |                           |                     |                 |
+     |                           |               Logger           MqttListener
+     |                           |          (ShouldQueue only)    (Listener contract)
+     |                           |          no filtering          broker/topic/JSON filter
+     |                           |                |                     |
+     |                           |           DB insert            processMessage()
 ```
 
 The flow is intentionally one-directional: the supervisor dispatches and moves on. Listeners process asynchronously on the queue, ensuring the MQTT loop is never blocked by slow handlers.
@@ -57,7 +59,11 @@ On each iteration of the supervisor loop, `BrokerSupervisor::monitor()` calls `$
 ```php
 protected function handleMessage(string $topic, string $message): void
 {
-    // Log truncated message for debugging
+    // Truncate long messages (>100 chars) for display
+    $displayMessage = strlen($message) > 100
+        ? substr($message, 0, 100) . '...'
+        : $message;
+
     $this->output('info', sprintf('Message received on topic [%s]: %s', $topic, $displayMessage));
 
     try {
@@ -81,7 +87,7 @@ public static function received(string $topic, string $message, string $broker =
 }
 ```
 
-This fires Laravel's event dispatcher, which routes the event to all registered listeners.
+This fires Laravel's event dispatcher, which routes the event to all registered listeners. Note that `received()` does not pass a PID — the `MqttMessageReceived::$pid` constructor parameter exists for internal/testing use but is never populated in the standard subscription flow.
 
 ### 4. Event Registration
 
@@ -99,33 +105,47 @@ During `boot()`, the service provider iterates `$events` and calls `$dispatcher-
 
 ### 5. Logger Listener (Built-in)
 
-The `Logger` listener stores every received message in the database:
+The `Logger` listener stores every received message in the database. Unlike custom listeners, `Logger` does **not** extend `MqttListener` or implement the `Listener` contract — it implements `ShouldQueue` directly with its own `handle()` method. This means it bypasses all the broker/topic/JSON filtering that `MqttListener` enforces.
 
 ```php
-public function handle(MqttMessageReceived $event): void
+class Logger implements ShouldQueue
 {
-    if (! config('mqtt-broadcast.logs.enable')) {
-        return;
+    use InteractsWithQueue, Queueable, SerializesModels;
+
+    public function viaQueue(): string
+    {
+        return config('mqtt-broadcast.logs.queue');
     }
 
-    // JSON decode with fallback to raw string
-    try {
-        $message = json_decode($rawMessage, false, 512, JSON_THROW_ON_ERROR);
-    } catch (\JsonException $e) {
-        $message = $rawMessage;
-    }
+    public function handle(MqttMessageReceived $event): void
+    {
+        if (! config('mqtt-broadcast.logs.enable')) {
+            return;
+        }
 
-    MqttLogger::query()->create([
-        'topic' => $topic,
-        'message' => $message,
-        'broker' => $broker,
-    ]);
+        // JSON decode with fallback to raw string
+        try {
+            $message = json_decode($rawMessage, false, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            $message = $rawMessage;
+        }
+
+        MqttLogger::query()->create([
+            'topic' => $topic,
+            'message' => $message,
+            'broker' => $broker,
+        ]);
+    }
 }
 ```
 
 - Disabled by default — enable with `MQTT_LOG_ENABLE=true`.
-- Runs on its own queue: `config('mqtt-broadcast.logs.queue')`.
-- Accepts both JSON and non-JSON messages.
+- Runs on its own queue via `viaQueue()`: `config('mqtt-broadcast.logs.queue')`.
+- Accepts **all** messages (JSON and non-JSON, objects and arrays) — no filtering.
+- Writes to a configurable database connection: `MqttLogger::getConnectionName()` reads `config('mqtt-broadcast.logs.connection')`.
+- Table name is also configurable: `MqttLogger::getTable()` reads `config('mqtt-broadcast.logs.table', 'mqtt_loggers')`.
+- The `MqttLogger` model uses the `HasExternalId` trait, which auto-generates a UUID `external_id` on creation and uses it as the route key for API access.
+- The `message` column has a `json` cast — Eloquent handles serialization automatically, so both decoded JSON objects and raw strings are stored correctly.
 
 ### 6. Custom Listeners (MqttListener)
 
@@ -145,36 +165,98 @@ class TemperatureSensorListener extends MqttListener
 }
 ```
 
-The `handle()` method in `MqttListener` applies three filters before calling `processMessage()`:
+`MqttListener` uses three queue traits — `InteractsWithQueue`, `Queueable`, `SerializesModels` — giving subclasses access to queue features like `$this->release($delay)` for re-queuing and `$this->delete()` for manual removal.
 
-1. **Broker filter**: `$event->getBroker() !== $this->handleBroker` — skips messages from other brokers.
-2. **Topic filter**: `$event->getTopic() !== $this->getTopic()` — skips non-matching topics (unless `$topic = '*'`).
+**Default property values:**
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `$handleBroker` | `'local'` | Broker connection name to filter on |
+| `$topic` | `'*'` | Topic to match (wildcard `*` matches all) |
+
+Queue routing is handled by `viaQueue()`, which returns `config('mqtt-broadcast.queue.listener')`.
+
+**The filtering pipeline in `handle()`:**
+
+The `handle()` method applies three filters before calling `processMessage()`:
+
+1. **Broker filter**: `$event->getBroker() !== $this->handleBroker` — skips messages from other brokers. This is an exact string comparison.
+2. **Topic filter**: `$event->getTopic() !== $this->getTopic()` — skips non-matching topics. The check is inverted when `$this->getTopic()` returns `'*'`. **Important**: this is exact string matching, not MQTT wildcard matching. The `+` and `#` MQTT wildcards are not supported in listener-level topic filtering — only the literal `*` value (meaning "match all") is handled as a special case.
 3. **Pre-process hook**: `preProcessMessage()` — returns `false` to skip. Default is `true`.
 
 After filtering, it JSON-decodes the message:
 
-- Invalid JSON: logs a warning and returns (no exception).
+- Invalid JSON: logs a warning with context (broker, topic, first 200 chars of message, error) and returns.
 - Valid JSON but not an object (e.g., array, scalar): silently returns.
 - Valid JSON object: passed to `processMessage()`.
 
 Topic matching uses the prefixed topic via `MqttBroadcast::getTopic()`, so `$topic = 'sensors/temperature'` with prefix `home/` matches `home/sensors/temperature`.
+
+### preProcessMessage() Signature
+
+```php
+public function preProcessMessage(?string $topic = null, ?object $obj = null): bool
+{
+    return true;
+}
+```
+
+The method signature accepts optional `$topic` and `$obj` parameters, but **the base `handle()` method calls it with no arguments**: `$this->preProcessMessage()`. This call happens _before_ JSON decoding, so the decoded object is not yet available. The parameters exist for subclass flexibility — a custom listener can override `preProcessMessage()` to accept these parameters from other call sites, or simply ignore them:
+
+```php
+class FilteredListener extends MqttListener
+{
+    protected string $handleBroker = 'local';
+    protected string $topic = 'sensors/temperature';
+
+    // Called with no args from handle() — use for pre-decode gating logic
+    public function preProcessMessage(?string $topic = null, ?object $obj = null): bool
+    {
+        // Example: skip processing during maintenance windows
+        return ! app()->isDownForMaintenance();
+    }
+
+    public function processMessage(string $topic, object $obj): void
+    {
+        SensorReading::create(['value' => $obj->value]);
+    }
+}
+```
+
+### Logger vs MqttListener Contract Distinction
+
+The `Listener` contract (`src/Contracts/Listener.php`) requires both `handle()` and `processMessage()`:
+
+```php
+interface Listener
+{
+    public function handle(MqttMessageReceived $event): void;
+    public function processMessage(string $topic, object $obj): void;
+}
+```
+
+`MqttListener` implements this contract — it enforces the JSON-object-only filtering pipeline. `Logger` does **not** implement `Listener` — it subscribes to the same event but processes all message formats without filtering. This is intentional: the logger should capture everything, while custom listeners should only process structured JSON objects.
 
 ## Key Components
 
 | File | Class/Method | Responsibility |
 |------|-------------|----------------|
 | `src/Events/MqttMessageReceived.php` | `MqttMessageReceived` | Immutable event VO carrying topic, message, broker, and optional PID |
-| `src/Contracts/Listener.php` | `Listener` | Interface requiring `handle()` and `processMessage()` |
-| `src/Listeners/MqttListener.php` | `MqttListener` | Abstract base for JSON listeners with broker/topic filtering and queue support |
+| `src/Events/MqttMessageReceived.php` | `getPid()` | Returns the optional process ID (not populated by `received()` — reserved for internal/testing use) |
+| `src/Contracts/Listener.php` | `Listener` | Interface requiring `handle()` and `processMessage()` — implemented by `MqttListener`, NOT by `Logger` |
+| `src/Listeners/MqttListener.php` | `MqttListener` | Abstract base for JSON listeners with broker/topic filtering and queue support. Uses `InteractsWithQueue`, `Queueable`, `SerializesModels` traits |
 | `src/Listeners/MqttListener.php` | `handle()` | Applies broker, topic, and pre-process filters; decodes JSON; delegates to `processMessage()` |
-| `src/Listeners/MqttListener.php` | `preProcessMessage()` | Hook for custom validation before processing (default: `true`) |
-| `src/Listeners/MqttListener.php` | `getTopic()` | Returns prefixed topic via `MqttBroadcast::getTopic()` |
-| `src/Listeners/Logger.php` | `Logger` | Built-in listener that stores messages in `mqtt_loggers` table |
+| `src/Listeners/MqttListener.php` | `preProcessMessage(?string, ?object): bool` | Hook for custom validation before JSON decoding. Called with no args from `handle()`. Default: `true` |
+| `src/Listeners/MqttListener.php` | `viaQueue()` | Queue routing — returns `config('mqtt-broadcast.queue.listener')` |
+| `src/Listeners/MqttListener.php` | `getTopic()` | Returns prefixed topic via `MqttBroadcast::getTopic($this->topic, $this->handleBroker)` |
+| `src/Listeners/Logger.php` | `Logger` | Built-in listener (implements `ShouldQueue` directly, no `Listener` contract). Stores all messages in `mqtt_loggers` |
+| `src/Listeners/Logger.php` | `viaQueue()` | Queue routing — returns `config('mqtt-broadcast.logs.queue')` |
+| `src/Models/MqttLogger.php` | `MqttLogger` | Model with `HasExternalId` (UUID), configurable connection/table, `json` cast on `message` |
 | `src/EventMap.php` | `EventMap` | Trait defining the `MqttMessageReceived -> [listeners]` mapping |
-| `src/MqttBroadcast.php` | `received()` | Static method that fires the `MqttMessageReceived` event |
+| `src/MqttBroadcast.php` | `received()` | Static method that fires `MqttMessageReceived` (does not pass PID) |
 | `src/MqttBroadcastServiceProvider.php` | `registerEvents()` | Iterates `EventMap::$events` and registers listeners with the dispatcher |
 | `src/Supervisors/BrokerSupervisor.php` | `connect()` | Subscribes to MQTT wildcard topic with message callback |
-| `src/Supervisors/BrokerSupervisor.php` | `handleMessage()` | Calls `MqttBroadcast::received()` with error isolation |
+| `src/Supervisors/BrokerSupervisor.php` | `handleMessage()` | Truncates message to 100 chars for logging, calls `MqttBroadcast::received()` with error isolation |
 | `stubs/MqttBroadcastServiceProvider.stub` | Published provider | Stub for app-level provider where users add custom listeners |
 
 ## Configuration
@@ -192,28 +274,37 @@ Topic matching uses the prefixed topic via `MqttBroadcast::getTopic()`, so `$top
 
 ## Database Schema
 
-The `Logger` listener writes to the `mqtt_loggers` table (covered in the [message publishing docs](../publishing/message-publishing.md#database-schema)).
+The `Logger` listener writes to the `mqtt_loggers` table via the `MqttLogger` model. The model uses two configurable overrides:
+
+- `getConnectionName()` returns `config('mqtt-broadcast.logs.connection')` — falls back to Laravel's default connection if not set.
+- `getTable()` returns `config('mqtt-broadcast.logs.table', 'mqtt_loggers')`.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | `bigint` | Primary key |
+| `external_id` | `uuid` | Auto-generated UUID via `HasExternalId` trait — used as route key for API endpoints |
 | `broker` | `string` | Broker connection name |
 | `topic` | `string` | Full MQTT topic (with prefix) |
-| `message` | `json` | Payload — JSON object or raw string |
+| `message` | `json` | Payload — JSON object or raw string (Eloquent `json` cast handles serialization) |
 | `created_at` | `timestamp` | When the message was received |
 | `updated_at` | `timestamp` | Standard Laravel timestamp |
+
+The `HasExternalId` trait provides:
+- Auto UUID generation on model `creating` event via `Str::uuid()`
+- `getRouteKeyName()` returns `'external_id'` — route model binding uses the UUID instead of the database ID
 
 ## Error Handling
 
 | Scenario | Behavior |
 |----------|----------|
 | MQTT message triggers exception in `handleMessage()` | Caught, logged to output; supervisor continues |
-| Invalid JSON in `MqttListener::handle()` | Warning logged with truncated message (first 200 chars); listener returns without processing |
-| Valid JSON but not an object (array, scalar) | Silently skipped |
+| Invalid JSON in `MqttListener::handle()` | Warning logged with context (broker, topic, first 200 chars, error message); listener returns without processing |
+| Valid JSON but not an object (array, scalar) | Silently skipped — no warning, no error |
 | Listener job fails on the queue | Standard Laravel queue retry/failure handling applies |
 | Logger disabled but event still fires | `Logger::handle()` returns immediately; no DB write |
 | Broker mismatch in listener | Listener returns immediately; no processing |
 | Topic mismatch in listener | Listener returns immediately; no processing |
+| `preProcessMessage()` returns false | Listener returns immediately; no warning logged |
 
 ## Mermaid Diagrams
 
@@ -232,6 +323,7 @@ sequenceDiagram
     Note over BS: loopOnce() each iteration
 
     Broker->>BS: message(topic, payload)
+    BS->>BS: truncate message >100 chars for log
     BS->>Facade: received(topic, payload, brokerName)
     Facade->>Dispatcher: event(new MqttMessageReceived(...))
 
@@ -253,17 +345,45 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[MqttMessageReceived event] --> B{Broker matches?}
+    A[MqttMessageReceived event] --> B{Broker matches?<br/>exact string compare}
     B -->|No| Z[Return - skip]
-    B -->|Yes| C{Topic matches<br/>or topic == '*'?}
-    C -->|No| Z
-    C -->|Yes| D{preProcessMessage()?}
+    B -->|Yes| C{getTopic returns '*'?}
+    C -->|Yes| D
+    C -->|No| C2{Topic matches?<br/>exact string compare}
+    C2 -->|No| Z
+    C2 -->|Yes| D{preProcessMessage<br/>called with NO args}
     D -->|false| Z
-    D -->|true| E{JSON decode}
-    E -->|JsonException| F[Log warning, return]
-    E -->|Success| G{Is object?}
-    G -->|No| Z
+    D -->|true| E{JSON decode<br/>depth 512}
+    E -->|JsonException| F[Log warning with context<br/>broker, topic, first 200 chars]
+    E -->|Success| G{is_object?}
+    G -->|No array/scalar| Z
     G -->|Yes| H[processMessage<br/>topic, obj]
+```
+
+### Logger vs MqttListener Architecture
+
+```mermaid
+flowchart TD
+    Event[MqttMessageReceived] --> Logger
+    Event --> ML[MqttListener]
+
+    subgraph Logger[Logger - ShouldQueue only]
+        L1{logs.enable?}
+        L1 -->|No| L2[Return]
+        L1 -->|Yes| L3[JSON decode<br/>fallback to raw]
+        L3 --> L4[MqttLogger::create<br/>stores everything]
+    end
+
+    subgraph ML[MqttListener - Listener contract]
+        M1{Broker filter} -->|Pass| M2{Topic filter}
+        M2 -->|Pass| M3{preProcessMessage}
+        M3 -->|true| M4{JSON decode}
+        M4 -->|Object only| M5[processMessage]
+        M1 -->|Fail| M6[Skip]
+        M2 -->|Fail| M6
+        M3 -->|false| M6
+        M4 -->|Not object| M6
+    end
 ```
 
 ### Event Registration Flow
