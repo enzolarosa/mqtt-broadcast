@@ -442,3 +442,21 @@
   Added: Key Components table expanded with output() method, constructor initial peak
   Skipped: Outline publish (plans/doc.md does not exist)
   Remaining opportunities: deepen rate-limiting or http-api-reference docs
+
+2026-03-27 | rate-limiting deepening
+  Updated: docs/publishing/rate-limiting.md
+  Added: Throttle strategy execution-continues bug — release() does not stop handle(), message publishes immediately AND duplicate job is queued
+  Added: Double counting analysis — facade attempt() + job allows()+hit() = 2 hits per message, effective limit is ~50% of configured
+  Added: TOCTOU race condition — allows()+hit() is non-atomic, concurrent workers can exceed limit by 1
+  Added: Config resolution per call — 8 config() calls on allowed path, 14+ on reject path, no caching after construction
+  Added: Singleton cache driver lock — constructor freezes cache driver for process lifetime via ServiceBindings singleton
+  Added: clear() bypasses isEnabled() — only public method without the guard, inconsistent with allows/hit/remaining/availableIn
+  Added: attempt() internal flow — allows() called twice on reject path (once by checkRateLimit, once by attempt internally)
+  Added: handleRateLimitExceeded return value discarded — facade callers ignore the int return on throttle path
+  Added: Unknown strategy string falls through to throttle behavior — no validation
+  Added: availableIn() returns 0 when not exceeded — only calculates delay for exceeded windows
+  Added: Key Components table expanded with RateLimitExceededException accessors, MqttBroadcast::publish(), MqttBroadcast::publishSync()
+  Added: Error handling table expanded with throttle continues, double counting, TOCTOU, unknown strategy, clear() without guard
+  Added: Mermaid diagrams — Rate Check Flow updated with throttle bug showing handle() continuation, Double Counting async lifecycle sequence diagram, attempt() internal flowchart
+  Skipped: Outline publish (plans/doc.md does not exist)
+  Remaining opportunities: deepen http-api-reference docs
