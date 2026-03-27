@@ -96,3 +96,12 @@
   Covered: TestCase base class (Orchestra Testbench bootstrap, SQLite in-memory DB, config defaults, setMqttConfig/getProtectedProperty/requiresBroker helpers), Pest.php bootstrap (uses directive, Mockery cleanup), MockMqttClient (drop-in MQTT client double, publish/subscribe recording, assertPublished/assertNotPublished assertions, connection state enforcement), BrokerAvailability (cached broker detection, MQTT_BROKER_AVAILABLE env var, live connection attempt, diagnostic socket fallback), test patterns (Mockery factory mocking, Queue::fake with protected property assertions, HTTP controller tests, andReturnUsing for real model returns, proc_open integration tests), dev dependencies (Pest 4, Testbench 9/10, PHPUnit 10/11/12, Larastan, Collision), composer scripts (test, test-coverage, pint, analyse)
   Skipped: sales/ (infrastructure feature, not customer-facing)
   Remaining opportunities: deepen existing docs (cross-references between docs, additional edge cases), document MqttBroadcast::css()/js()/manifest() asset helper methods (currently undocumented but used by dashboard Blade template)
+
+2026-03-27 | asset-pipeline (en + it)
+  Created: docs/en/dev/dashboard/asset-pipeline.md
+  Created: docs/en/po/dashboard/asset-pipeline.md
+  Created: docs/it/dev/dashboard/asset-pipeline.md
+  Created: docs/it/po/dashboard/asset-pipeline.md
+  Covered: Vite configuration (entry points, buildDirectory, deterministic filenames, @ alias), laravel-vite-plugin integration (custom build directory, manifest resolution), manifest.json structure (isEntry, file, css dependencies), MqttBroadcast::css() (manifest-based link tag generation, entry filtering, CSS deduplication), MqttBroadcast::js() (manifest-based script module tag generation), MqttBroadcast::manifest() (two-step path resolution: published → package → empty fallback), Blade template integration (window.mqttBroadcast config injection, @vite directive with custom build directory), asset publishing (mqtt-broadcast-assets and laravel-assets tags, offerPublishing in ServiceProvider), build commands (npm run dev/build), error handling (missing manifest, invalid JSON, unpublished assets, dev server not running)
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Remaining opportunities: deepen existing docs with cross-references between documents, add Facade docblock entries for css()/js() methods, document advanced MQTT connection defaults and memory management configuration in greater detail
