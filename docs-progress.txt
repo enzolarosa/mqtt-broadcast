@@ -15,3 +15,12 @@
   Covered: MqttBroadcast facade (publish/publishSync), MqttMessageJob (queue dispatch, handle, checkRateLimit, mqtt client creation), RateLimitService (two-layer enforcement, reject/throttle strategies, per-second/per-minute, per-connection/global), MqttClientFactory (ephemeral connections, UUID client IDs), MqttConnectionConfig (validated config VO), helper functions (mqttMessage/mqttMessageSync), topic prefixing, JSON serialization, error handling (fail-fast config errors vs retryable network errors), mqtt_loggers table, queue configuration
   Skipped: sales/ (infrastructure feature, not customer-facing)
   Still needs coverage: message subscription & events (MqttMessageReceived, listeners), dashboard & monitoring API (controllers, React frontend), health checking, installation & configuration guide
+
+2026-03-27 | message-subscription (en + it)
+  Created: docs/en/dev/subscription/message-subscription.md
+  Created: docs/en/po/subscription/message-subscription.md
+  Created: docs/it/dev/subscription/message-subscription.md
+  Created: docs/it/po/subscription/message-subscription.md
+  Covered: MqttMessageReceived event (immutable VO with topic/message/broker/pid), Listener contract interface, MqttListener abstract base class (broker filtering, topic filtering, preProcessMessage hook, JSON-only decode with object validation, queue support via ShouldQueue), Logger built-in listener (optional DB storage, JSON fallback to raw), EventMap trait (event-to-listener mapping), MqttBroadcast::received() dispatch, MqttBroadcastServiceProvider::registerEvents() registration, BrokerSupervisor::handleMessage() with error isolation, BrokerSupervisor::connect() wildcard subscription, published provider stub for custom listeners, queue configuration (listener queue, log queue)
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Still needs coverage: dashboard & monitoring API (controllers, React frontend), health checking, installation & configuration guide
