@@ -26,6 +26,8 @@ La suite di test funge da rete di sicurezza: qualsiasi modifica al codice viene 
 - **La suite di test valida l'intero stack**: model, job, controller, middleware, supervisor, rate limiting e Dead Letter Queue
 - **Stile codice e analisi statica sono controlli separati** — `composer pint` impone la formattazione, `composer analyse` rileva errori di tipo a livello PHPStan 7
 - **I report di copertura sono disponibili** tramite `composer test-coverage`
+- **Le factory per i dati di test sono incluse nel pacchetto** — factory predefinite per i processi broker e i log dei messaggi consentono scenari di test realistici, inclusi broker fermati, heartbeat obsoleti e vari formati di messaggio
+- **Tutti i model esposti via API usano identificatori UUID** — gli scenari di test e le interazioni API referenziano i record tramite UUID, non per ID auto-incrementale del database, garantendo coerenza con il modo in cui la dashboard e i consumatori esterni accedono ai dati
 
 ## Casi Limite
 

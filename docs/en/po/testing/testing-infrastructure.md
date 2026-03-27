@@ -26,6 +26,8 @@ The test suite acts as a safety net: any code change is validated against 356 au
 - **The test suite validates the full stack**: models, jobs, controllers, middleware, supervisors, rate limiting, and the Dead Letter Queue
 - **Code style and static analysis are separate checks** — `composer pint` enforces formatting, `composer analyse` catches type errors at PHPStan level 7
 - **Coverage reports are available** via `composer test-coverage`
+- **Test data factories ship with the package** — pre-built factories for broker processes and message logs allow realistic test scenarios including stopped brokers, stale heartbeats, and various message formats
+- **All API-facing models use UUID identifiers** — test scenarios and API interactions reference records by UUID, not by database auto-increment IDs, ensuring consistency with how the dashboard and external consumers access data
 
 ## Edge Cases
 

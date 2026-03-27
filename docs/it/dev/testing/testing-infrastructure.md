@@ -138,6 +138,91 @@ flowchart TD
     Diagnose --> Skip
 ```
 
+### Factory del Database
+
+Il pacchetto include due factory Eloquent per la generazione di dati di test. Entrambe sono risolte automaticamente tramite la convenzione del namespace `Database\Factories\` configurata nel `TestCase`.
+
+#### `BrokerProcessFactory`
+
+Crea record `BrokerProcess` per la tabella `mqtt_brokers`. Gli attributi fillable del model sono: `name`, `connection`, `pid`, `started_at`, `last_heartbeat_at`, `working`.
+
+```php
+// Default: un broker attivo con heartbeat recente
+BrokerProcess::factory()->create();
+
+// Attributi personalizzati
+BrokerProcess::factory()->create([
+    'name' => 'sensor-hub-ab12',
+    'connection' => 'default',
+    'pid' => 12345,
+    'started_at' => now()->subHours(2),
+    'last_heartbeat_at' => now(),
+    'working' => true,
+]);
+```
+
+Due stati della factory modellano scenari di test comuni:
+
+| Stato | Effetto | Caso d'Uso |
+|-------|---------|------------|
+| `stopped()` | Imposta `working => false` | Test filtro dashboard dei broker inattivi, pulizia comando terminate |
+| `stale()` | Imposta `last_heartbeat_at => now()->subMinutes(10)` | Test della macchina a stati connection_status (`idle`/`reconnecting`/`disconnected` basata sulle soglie di eta' dell'heartbeat) |
+
+```php
+// Broker fermato
+BrokerProcess::factory()->stopped()->create();
+
+// Broker con heartbeat obsoleto (10 minuti fa)
+BrokerProcess::factory()->stale()->create();
+
+// Combinare gli stati
+BrokerProcess::factory()->stopped()->stale()->create();
+```
+
+#### `MqttLoggerFactory`
+
+Crea record `MqttLogger` per la tabella `mqtt_loggers`. Il model usa il trait `HasExternalId`, che genera automaticamente un UUID `external_id` alla creazione e sovrascrive `getRouteKeyName()` per usarlo nel route model binding.
+
+```php
+// Default: un semplice record di log
+MqttLogger::factory()->create();
+// Produce: broker='broker', topic='topic', message=['msg' => 'Hi'], external_id=UUID-automatico
+
+// Messaggio JSON personalizzato
+MqttLogger::factory()->create([
+    'broker' => 'production',
+    'topic' => 'sensors/temperature',
+    'message' => ['value' => 25.5, 'unit' => 'celsius'],
+]);
+
+// Messaggio stringa raw (memorizzato come stringa JSON per il cast 'json')
+MqttLogger::factory()->create([
+    'message' => 'plain text payload',
+]);
+```
+
+**Importante**: `MqttLogger` supporta connessione database e nome tabella configurabili tramite `mqtt-broadcast.logs.connection` e `mqtt-broadcast.logs.table`. Nei test, questi si risolvono al database SQLite `:memory:` e alla tabella `mqtt_loggers` rispettivamente, corrispondendo ai default del `TestCase`.
+
+#### Trait `HasExternalId`
+
+Usato da `MqttLogger` e `FailedMqttJob`. Questo trait:
+
+1. Assegna automaticamente un UUID a `external_id` durante l'evento `creating` (tramite `Str::uuid()`)
+2. Sovrascrive `getRouteKeyName()` per restituire `'external_id'` — gli endpoint API usano UUID invece degli ID auto-incrementali
+
+Quando si testano endpoint API che referenziano questi model, usare sempre `external_id` nelle URL:
+
+```php
+$log = MqttLogger::factory()->create();
+
+// Corretto: usare external_id per il route model binding
+$this->getJson("/mqtt-broadcast/api/messages/{$log->external_id}")
+    ->assertOk();
+
+// Errato: l'ID auto-incrementale non corrisponde al route model binding
+// $this->getJson("/mqtt-broadcast/api/messages/{$log->id}") // 404
+```
+
 ## Componenti Chiave
 
 | File | Classe/Metodo | Responsabilita' |
@@ -149,6 +234,9 @@ flowchart TD
 | `tests/TestCase.php` | `requiresBroker()` | Guardia per saltare test di integrazione |
 | `tests/Helpers/MockMqttClient.php` | `MockMqttClient` | Client MQTT in memoria con metodi di asserzione |
 | `tests/Support/BrokerAvailability.php` | `BrokerAvailability` | Verifica raggiungibilita' broker con cache e diagnostica |
+| `database/factories/BrokerProcessFactory.php` | `BrokerProcessFactory` | Factory con stati `stopped()` e `stale()` per `BrokerProcess` |
+| `database/factories/MqttLoggerFactory.php` | `MqttLoggerFactory` | Factory per `MqttLogger` con default broker/topic/message |
+| `src/Models/Concerns/HasExternalId.php` | `HasExternalId` | Generazione UUID `external_id` automatica + override route key |
 | `composer.json` | `scripts.test` | `vendor/bin/pest` |
 | `composer.json` | `scripts.test-coverage` | `vendor/bin/pest --coverage` |
 
@@ -235,9 +323,10 @@ it('dispatches MqttMessageJob with correct parameters', function () {
 ```php
 it('returns healthy status when brokers are active', function () {
     BrokerProcess::factory()->create([
-        'broker_name' => 'default',
-        'connection_status' => 'connected',
+        'name' => 'default-ab12',
+        'connection' => 'default',
         'last_heartbeat_at' => now(),
+        'working' => true,
     ]);
 
     $response = $this->getJson('/mqtt-broadcast/api/health');
@@ -258,10 +347,10 @@ it('returns healthy status when brokers are active', function () {
 // Ritorna istanze model reali dal repository mockato
 $this->repository->shouldReceive('create')
     ->byDefault()
-    ->andReturnUsing(function ($name, $masterName, $pid) {
+    ->andReturnUsing(function ($name, $connection, $pid) {
         $broker = new BrokerProcess();
-        $broker->broker_name = $name;
-        $broker->master_name = $masterName;
+        $broker->name = $name;
+        $broker->connection = $connection;
         $broker->pid = $pid;
         $broker->exists = true;
         return $broker;

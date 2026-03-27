@@ -150,3 +150,17 @@
   Covered: All 15 API endpoints with full request/response schemas, Authorize middleware (Gate-based auth, local bypass, 403 handling), HealthController (200/503, memory check status values: pass/warn/critical/unknown, health criteria), DashboardStatsController (aggregated stats, message counts conditional on logs.enable), BrokerController (index with computed connection_status state machine: connected/idle/reconnecting/disconnected based on heartbeat age thresholds 30s/120s, show with recent_messages, uptime_human formatting), MessageLogController (index with broker/topic/limit filters, show with is_json/message_parsed, topics with 24h top-20), MetricsController (throughput with period=hour/day/week gap-filling, time format per period, summary with peak_minute detection), FailedJobController (index with broker/topic/limit filters using external_id UUID, show with full exception/message, retry single, retryAll with 1-min cooldown, destroy 204, flush truncate), Dashboard SPA catch-all, configuration reference (prefix/domain/middleware/logs.enable/queue.name/memory.threshold_mb/master_supervisor.name), error handling matrix, Mermaid diagrams (auth flow, connection_status state machine, health check decision flow, failed job retry sequence)
   Skipped: sales/ (infrastructure feature, not customer-facing)
   Remaining opportunities: deepen existing docs with cross-references between documents, document edge cases around MySQL-specific DATE_FORMAT() in MetricsController (SQLite compatibility gap)
+
+2026-03-27 | testing-infrastructure deepening (en + it)
+  Updated: docs/en/dev/testing/testing-infrastructure.md
+  Updated: docs/en/po/testing/testing-infrastructure.md
+  Updated: docs/it/dev/testing/testing-infrastructure.md
+  Updated: docs/it/po/testing/testing-infrastructure.md
+  Fixed: BrokerProcess factory examples used wrong attribute names (broker_name/connection_status/master_name → name/connection/working) in both dev docs (EN + IT)
+  Added: BrokerProcessFactory documentation with stopped()/stale() states, usage examples, and combination patterns
+  Added: MqttLoggerFactory documentation with default values, JSON/raw message examples, configurable connection/table
+  Added: HasExternalId trait documentation (auto-UUID generation, route key override, correct API URL usage in tests)
+  Added: Key Components table expanded with factory files and HasExternalId trait
+  Added: PO docs updated with business rules about test data factories and UUID identifiers
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Remaining opportunities: deepen existing docs with cross-references between documents, document MetricsController MySQL-specific DATE_FORMAT() (SQLite compatibility gap), expand MqttListener::preProcessMessage() documentation with parameter signature details
