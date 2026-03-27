@@ -285,3 +285,27 @@
   Added: Key Components table expanded with getConnectionName(), getTable(), FailedJob TS interface, useFailedJobs hook
   Added: Mermaid sequence diagram — retry() and retryAll() query flow visualization
   Remaining opportunities: deepen package-infrastructure, dashboard-frontend, installation-configuration, deprecations-migration, asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs
+
+2026-03-27 | package-infrastructure deepening
+  Updated: docs/infrastructure/package-infrastructure.md
+  Added: Facade resolution quirk — static methods behind Facade accessor, auto-discovery alias, three calling paths (Facade/helper/direct) with Mermaid diagram
+  Added: MqttBroadcast class full method table — publish/publishSync/received/getTopic/css/js/manifest/validateBrokerConfiguration
+  Added: Type inconsistency — publish() accepts string, publishSync() accepts mixed
+  Added: validateBrokerConfiguration() minimal validation — only host/port, no auth/TLS/type checks
+  Added: Dual rate-limit check — facade-level + job-level enforcement for async publishing
+  Added: Helper function broker default mismatch — 'local' vs 'default', potential MqttBroadcastException
+  Added: ServiceBindings self-binding only — all numeric keys, public property, no interface→implementation
+  Added: Authorize middleware internals — Gate::allows() redundant argument, plain 403 response (not JSON), local bypass
+  Added: Publishable provider stub boot() ordering — parent::boot() registers routes before config overrides in stub
+  Added: Signal deduplication — identical key/value prevents duplicate signal processing, FIFO drain order via Arr::first()
+  Added: Signal drain order — terminate processes before restart/pause when both queued
+  Added: ListensForSignals contract assumption — no method existence enforcement, relies on dynamic call
+  Added: Enhanced signal sequence diagram — shows multi-signal drain with ordering
+  Added: mqtt_failed_jobs schema correction — broker (not connection), added qos/retain/retried_at/retry_count columns
+  Added: mqtt_loggers composite index detail — replaces original single broker index (migration 2024_11_03)
+  Added: Platform requirements table — PHP 8.3+, ext-pcntl, ext-posix, Laravel 11-13, php-mqtt/client
+  Added: Windows incompatibility note for supervisor system
+  Added: Legacy password config key — Str::random(32) regenerates per request, not used by any code path
+  Added: Migration connection behavior — Schema::connection() reads config at migration time, not runtime
+  Added: Key Components table expanded with MqttBroadcast class, Facade, Authorize middleware, composer.json entries
+  Remaining opportunities: deepen dashboard-frontend, installation-configuration, deprecations-migration, asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs
