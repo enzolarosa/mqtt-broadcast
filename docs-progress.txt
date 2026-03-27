@@ -24,3 +24,12 @@
   Covered: MqttMessageReceived event (immutable VO with topic/message/broker/pid), Listener contract interface, MqttListener abstract base class (broker filtering, topic filtering, preProcessMessage hook, JSON-only decode with object validation, queue support via ShouldQueue), Logger built-in listener (optional DB storage, JSON fallback to raw), EventMap trait (event-to-listener mapping), MqttBroadcast::received() dispatch, MqttBroadcastServiceProvider::registerEvents() registration, BrokerSupervisor::handleMessage() with error isolation, BrokerSupervisor::connect() wildcard subscription, published provider stub for custom listeners, queue configuration (listener queue, log queue)
   Skipped: sales/ (infrastructure feature, not customer-facing)
   Still needs coverage: dashboard & monitoring API (controllers, React frontend), health checking, installation & configuration guide
+
+2026-03-27 | dashboard-monitoring (en + it)
+  Created: docs/en/dev/dashboard/dashboard-monitoring.md
+  Created: docs/en/po/dashboard/dashboard-monitoring.md
+  Created: docs/it/dev/dashboard/dashboard-monitoring.md
+  Created: docs/it/po/dashboard/dashboard-monitoring.md
+  Covered: HealthController (200/503 health check, memory thresholds, individual checks), DashboardStatsController (aggregated stats, broker counts, message throughput, memory usage, uptime), BrokerController (broker list/detail, connection status state machine, uptime formatting, recent messages), MessageLogController (filtered/paginated logs, topic analytics, JSON parsing, message preview), MetricsController (time-series throughput with gap filling, summary with peak detection), Authorize middleware (Gate-based auth, local bypass), BrokerRepository (database CRUD), MasterSupervisorRepository (cache-based state, multi-driver key listing), route registration (configurable prefix/domain/middleware), React SPA catch-all route
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Still needs coverage: Artisan commands (InstallCommand, MqttBroadcastCommand, MqttBroadcastTerminateCommand, MqttBroadcastTestCommand), installation & configuration guide
