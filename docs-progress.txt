@@ -375,3 +375,27 @@
   Added: Key Components table expanded with Brokers::name(), Brokers::terminateByPid(), Brokers::terminate(), Brokers::exitProcess(), ProcessIdentifier::generateName()
   Skipped: Outline publish (plans/doc.md does not exist — no publishing instructions available)
   Remaining opportunities: deepen asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs
+
+2026-03-27 | asset-pipeline deepening
+  Updated: docs/dashboard/asset-pipeline.md
+  Added: Hot file detection mechanism — public/hot created by npm run dev, stale hot file scenario, not cleaned up on crash
+  Added: PostCSS pipeline — tailwindcss + autoprefixer two-stage processing
+  Added: Tailwind config deep-dive — darkMode class strategy, HSL CSS custom properties design system, content scanning paths, @layer base specificity
+  Added: TypeScript configuration — dual tsconfig (app + node), strict mode flags, noEmit (type-check only, esbuild transpiles), @/* path alias duplication between vite.config.ts and tsconfig.json
+  Added: CSS import chain — main.tsx imports CSS via relative path traversal (../../../../), creates bundle-time dependency, explains manifest css key on JS entry
+  Added: Manifest fields table — name/names fields present but unused by css()/js() helpers
+  Added: css() unique() is load-bearing — mqtt-dashboard.css appears twice (CSS entry file + JS entry css array), deduplication prevents duplicate <link> tags
+  Added: css()/js() implode indentation inconsistency — 8 spaces vs 4 spaces in generated HTML
+  Added: css() flatMap collection walkthrough — step-by-step showing raw values from both entries, filter/unique/extension stages
+  Added: npm run preview command — serves production build locally, not documented before
+  Added: Re-publishing --force caveat — vendor:publish doesn't overwrite by default, stale assets after package update
+  Added: Version pinning table — Vite 8, laravel-vite-plugin 3, React 19, Tailwind 3, TypeScript 5
+  Added: Deterministic filenames cache-busting gap — no content hashing, browser may serve stale assets
+  Added: refresh: true — Blade template changes trigger full page reload (not HMR)
+  Added: file_get_contents permission error handling — emits warning, json_decode(false) → null → []
+  Added: #mqtt-dashboard-root missing from DOM — main.tsx throws, noscript fallback doesn't cover this
+  Added: Host app laravel-vite-plugin version mismatch risk
+  Added: Key Components table expanded with tailwind.config.js, postcss.config.js, tsconfig.json, tsconfig.node.json, CSS entry point, JS entry point, public/hot
+  Added: Mermaid diagrams — CSS Processing Pipeline flowchart, css() Collection Logic flowchart
+  Skipped: Outline publish (plans/doc.md does not exist — no publishing instructions available)
+  Remaining opportunities: deepen repository-pattern, memory-management, rate-limiting, or http-api-reference docs
