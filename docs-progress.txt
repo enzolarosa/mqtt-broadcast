@@ -255,3 +255,19 @@
   Added: PO docs expanded with DLQ persistence rule, helper vs facade broker default mismatch, QoS/retain dispatch-time capture, clean session rule, no-auth edge case, config-change-after-dispatch edge case
   Skipped: sales/ (infrastructure feature, not customer-facing)
   Remaining opportunities: deepen artisan-commands, dead-letter-queue, package-infrastructure, dashboard-frontend, installation-configuration, deprecations-migration, asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs
+
+2026-03-27 | artisan-commands deepening (en)
+  Updated: docs/commands/artisan-commands.md
+  Added: PHP 8 #[AsCommand] attribute usage differences across commands — metadata and $signature visibility inconsistencies
+  Added: Dependency injection patterns table — container injection vs static calls vs self-contained
+  Added: MqttBroadcastTestCommand uses MqttBroadcast class directly, not the Facade
+  Added: registerInConfigApp() identical branches analysis — both if/else do the same str_replace
+  Added: Output callback architecture — $type parameter unused, connection name prefixing for broker supervisors
+  Added: No return after monitor() — implicit null return, undefined exit code edge case
+  Added: Terminate command components->task() visual wrapper and &$result by-reference pattern
+  Added: ProcessIdentifier Internals section — pid(), hostname(), generateName() with token generation, prefix handling, empty string edge case
+  Added: Mermaid diagrams — ProcessIdentifier name generation flowchart, output callback architecture sequence diagram
+  Added: Enhanced install flow diagram with provider-already-registered check
+  Added: Error handling table expanded with monitor() unexpected return, test command always-SUCCESS exit code, no-processes-on-host scenario
+  Added: Key Components table expanded with ProcessIdentifier::pid(), registerCommands() single-call detail
+  Remaining opportunities: deepen dead-letter-queue, package-infrastructure, dashboard-frontend, installation-configuration, deprecations-migration, asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs
