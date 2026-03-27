@@ -15,6 +15,15 @@ export default defineConfig({
     }),
     react(),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        entryFileNames: '[name].js',
+        chunkFileNames: '[name].js',
+        assetFileNames: '[name].[ext]',
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './resources/js/mqtt-dashboard/src'),

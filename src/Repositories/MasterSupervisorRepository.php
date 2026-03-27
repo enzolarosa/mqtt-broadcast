@@ -148,6 +148,11 @@ class MasterSupervisorRepository
 
         $keys = [];
         foreach ($files as $file) {
+            // Skip directories, only process files
+            if (! is_file($file)) {
+                continue;
+            }
+
             $key = $this->getKeyFromFile($file);
             if ($key && str_starts_with($key, $prefix)) {
                 $keys[] = $key;
@@ -196,6 +201,11 @@ class MasterSupervisorRepository
      */
     protected function getKeyFromFile(string $file): ?string
     {
+        // Skip if not a file (e.g., directory)
+        if (! is_file($file)) {
+            return null;
+        }
+
         $contents = file_get_contents($file);
 
         if ($contents === false) {

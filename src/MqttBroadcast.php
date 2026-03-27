@@ -74,4 +74,65 @@ class MqttBroadcast
             MqttBroadcastException::brokerMissingConfiguration($broker, 'port')
         );
     }
+
+    /**
+     * Get the CSS for the MQTT Broadcast dashboard.
+     */
+    public static function css(): string
+    {
+        $manifest = static::manifest();
+
+        $cssFiles = collect($manifest)
+            ->filter(fn ($asset) => isset($asset['isEntry']) && $asset['isEntry'])
+            ->flatMap(fn ($asset) => array_merge(
+                [$asset['file'] ?? null],
+                $asset['css'] ?? []
+            ))
+            ->filter()
+            ->unique()
+            ->filter(fn ($file) => str_ends_with($file, '.css'))
+            ->map(fn ($file) => '<link rel="stylesheet" href="'.asset("vendor/mqtt-broadcast/{$file}").'">')
+            ->implode("\n        ");
+
+        return $cssFiles;
+    }
+
+    /**
+     * Get the JavaScript for the MQTT Broadcast dashboard.
+     */
+    public static function js(): string
+    {
+        $manifest = static::manifest();
+
+        $jsFiles = collect($manifest)
+            ->filter(fn ($asset) => isset($asset['isEntry']) && $asset['isEntry'])
+            ->map(fn ($asset) => $asset['file'] ?? null)
+            ->filter()
+            ->filter(fn ($file) => str_ends_with($file, '.js'))
+            ->map(fn ($file) => '<script type="module" src="'.asset("vendor/mqtt-broadcast/{$file}").'"></script>')
+            ->implode("\n    ");
+
+        return $jsFiles;
+    }
+
+    /**
+     * Load the Vite manifest file.
+     */
+    protected static function manifest(): array
+    {
+        // Try published location first (in Laravel app)
+        $manifestPath = public_path('vendor/mqtt-broadcast/manifest.json');
+
+        // Fallback to package location (for development)
+        if (! file_exists($manifestPath)) {
+            $packageManifest = __DIR__.'/../public/vendor/mqtt-broadcast/manifest.json';
+            if (file_exists($packageManifest)) {
+                $manifestPath = $packageManifest;
+            } else {
+                return [];
+            }
+        }
+
+        return json_decode(file_get_contents($manifestPath), true) ?? [];
+    }
 }

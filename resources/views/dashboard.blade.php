@@ -16,7 +16,7 @@
         };
     </script>
 
-    {{-- Vite assets will be injected here --}}
+ {{-- Vite assets will be injected here --}}
     @vite(['resources/js/mqtt-dashboard/src/main.tsx', 'resources/css/mqtt-dashboard.css'])
 </head>
 <body>

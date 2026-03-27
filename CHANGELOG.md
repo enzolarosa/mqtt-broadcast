@@ -2,10 +2,71 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [v3.1.6] - 2026-03-23
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+---
+
+## [3.1.5] - 2026-01-29
+
+### Fixed
+
+- **Terminate Command**: Fixed "Is a directory" error when running `mqtt-broadcast:terminate`
+  - Added file type check in `MasterSupervisorRepository::getFileKeys()`
+  - Skip directories when reading cache files
+  - Prevents `file_get_contents()` from attempting to read directories
+
+---
+
+## [3.1.4] - 2026-01-29
+
+### Fixed
+
+- **Asset Publishing Path**: Fixed incorrect nesting of published assets
+  - Assets now correctly published to `public/vendor/mqtt-broadcast/`
+  - Previously were incorrectly nested in `public/vendor/mqtt-broadcast/vendor/mqtt-broadcast/`
+
+---
+
+## [3.1.3] - 2026-01-29
+
+### 🔧 Installation & Asset Management
+
+This patch release adds a Horizon-style install command and fixes dashboard asset loading issues.
+
+### Added
+
+- **Install Command**: New `php artisan mqtt-broadcast:install` command following Laravel Horizon pattern
+  - Automatically publishes config, service provider, and dashboard assets
+  - Auto-registers service provider in application
+  - Shows helpful next steps after installation
+- **Service Provider Stub**: Added `stubs/MqttBroadcastServiceProvider.stub` template
+  - Configurable gate for dashboard authorization
+  - Customizable path and middleware settings
+  - Clear examples and comments
+- **Asset Helpers**: Added `MqttBroadcast::css()` and `MqttBroadcast::js()` methods
+  - Loads compiled dashboard assets from manifest
+  - Follows Laravel Horizon pattern for asset management
+  - Supports stable filenames without hashing
+
+### Fixed
+
+- **Dashboard Loading**: Fixed Vite manifest error when accessing dashboard
+  - Changed from `@vite()` directive to static asset helpers
+  - Assets now published to `public/vendor/mqtt-broadcast/`
+  - Manifest file properly loaded from published assets
+- **Publishing Error**: Fixed missing `stubs/` directory error during vendor:publish
+- **Asset Compilation**: Updated Vite config for stable filenames (no hash in output)
+
+### Changed
+
+- Dashboard assets now included in package (committed to git)
+- Updated README with new installation flow
+- Updated `.gitignore` to allow `public/vendor/mqtt-broadcast/` assets
 
 ---
 
