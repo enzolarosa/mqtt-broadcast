@@ -24,6 +24,8 @@ The MQTT Broadcast system includes a built-in monitoring dashboard and health ch
 - **Message logging dependency**: Message logs, topic analytics, and throughput metrics are only available when message logging is explicitly enabled in configuration. When disabled, these sections show empty results with a clear indicator.
 - **Message limits**: Message log queries are capped at 100 results per request (default 30) to prevent excessive database load.
 - **Topic analytics**: Only messages from the last 24 hours are considered for topic ranking, limited to the top 20 topics.
+- **MySQL dependency for metrics**: Throughput charts and performance summary data only work when the application uses MySQL or MariaDB as its database. If the application uses SQLite or PostgreSQL, these metrics will not be available and will produce errors.
+- **Queue size reporting**: The dashboard shows pending queue job count. When using the "sync" queue driver (common in local development), queue size may not be available — the stats endpoint handles this gracefully and shows zero, but the health check endpoint may produce an error.
 
 ## Edge Cases
 
@@ -33,6 +35,8 @@ The MQTT Broadcast system includes a built-in monitoring dashboard and health ch
 - **Broker process crashed**: The broker remains in the database but its heartbeat becomes stale. It transitions through "reconnecting" to "disconnected" status over ~2 minutes.
 - **Non-JSON messages**: Messages that are not valid JSON are displayed as raw text. The detail view indicates whether the message is JSON or not.
 - **Very long messages**: Message previews are truncated to 100 characters in list views. Full content is available in the detail view.
+- **Non-MySQL database**: If the application uses SQLite or PostgreSQL, the throughput charts and performance summary will fail instead of showing empty data. Other dashboard sections (brokers, message logs, stats overview) continue to work normally.
+- **Sync queue driver**: The health check endpoint may report an error when the application uses the sync queue driver. The dashboard stats page handles this case and shows zero pending jobs.
 
 ## Permissions & Access
 

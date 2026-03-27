@@ -221,3 +221,20 @@
   Added: PO docs expanded with two listener architectures rule, pre-processing gate, UUID identification, JSON array edge case
   Skipped: sales/ (infrastructure feature, not customer-facing)
   Remaining opportunities: document MetricsController MySQL-specific DATE_FORMAT() (SQLite compatibility gap)
+
+2026-03-27 | dashboard-monitoring deepening (en + it)
+  Updated: docs/en/dev/dashboard/dashboard-monitoring.md
+  Updated: docs/en/po/dashboard/dashboard-monitoring.md
+  Updated: docs/it/dev/dashboard/dashboard-monitoring.md
+  Updated: docs/it/po/dashboard/dashboard-monitoring.md
+  Added: MetricsController MySQL-specific DATE_FORMAT() / DATE() incompatibility with SQLite and PostgreSQL — full equivalence table for all three methods, impact scope, and cross-database comparison with MessageLogController::topics()
+  Added: DashboardStatsController internals — 6-step aggregation walkthrough, calculateMemoryUsagePercent() division-by-zero guard, calculateUptime() Carbon parse with absolute flag
+  Added: Queue::size() inconsistency — DashboardStatsController wraps in try/catch (sync driver safe), HealthController does not (potential unhandled exception)
+  Added: N+1 query patterns — BrokerController::index() 2N+1 queries with logging enabled, BrokerController::show() loads all brokers to find one
+  Added: HealthController helper methods — getMasterSupervisorData() array/object dual handling, checkMemoryStatus() three-tier status with unique 'unknown' state
+  Added: New Mermaid sequence diagram — DashboardStatsController aggregation flow showing all data sources and conditional branches
+  Added: Key Components table expanded with HealthController::getMasterSupervisorData(), checkMemoryStatus(), DashboardStatsController::calculateMemoryUsagePercent(), calculateUptime()
+  Added: Error handling expanded with sync queue driver and MySQL-only metrics entries
+  Added: PO docs expanded with MySQL dependency for metrics, queue size sync driver edge case, non-MySQL database edge case
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Remaining opportunities: all identified features and edge cases are now documented. The codebase is comprehensively covered across 17 dev docs and corresponding PO docs. Future opportunities: document any new features added in development, or add cross-reference links between related documents.

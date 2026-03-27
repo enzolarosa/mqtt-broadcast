@@ -24,6 +24,8 @@ Il sistema MQTT Broadcast include una dashboard di monitoraggio integrata e un'A
 - **Dipendenza dal logging messaggi**: I log dei messaggi, le analitiche dei topic e le metriche di throughput sono disponibili solo quando il logging dei messaggi e esplicitamente abilitato nella configurazione. Quando disabilitato, queste sezioni mostrano risultati vuoti con un indicatore chiaro.
 - **Limiti messaggi**: Le query sui log messaggi sono limitate a 100 risultati per richiesta (default 30) per prevenire un carico eccessivo sul database.
 - **Analitiche topic**: Solo i messaggi delle ultime 24 ore vengono considerati per la classifica dei topic, limitati ai primi 20.
+- **Dipendenza da MySQL per le metriche**: I grafici di throughput e i dati di riepilogo delle performance funzionano solo quando l'applicazione utilizza MySQL o MariaDB come database. Se l'applicazione usa SQLite o PostgreSQL, queste metriche non saranno disponibili e produrranno errori.
+- **Reportistica dimensione coda**: La dashboard mostra il conteggio dei job in coda pendenti. Quando si usa il driver di coda "sync" (comune nello sviluppo locale), la dimensione della coda potrebbe non essere disponibile — l'endpoint delle statistiche gestisce questo caso in modo graceful e mostra zero, ma l'endpoint di health check potrebbe produrre un errore.
 
 ## Casi Limite
 
@@ -33,6 +35,8 @@ Il sistema MQTT Broadcast include una dashboard di monitoraggio integrata e un'A
 - **Crash del processo broker**: Il broker rimane nel database ma il suo heartbeat diventa stale. Transiziona attraverso "reconnecting" a "disconnected" in circa 2 minuti.
 - **Messaggi non JSON**: I messaggi che non sono JSON valido vengono mostrati come testo raw. La vista di dettaglio indica se il messaggio e JSON o meno.
 - **Messaggi molto lunghi**: Le anteprime dei messaggi sono troncate a 100 caratteri nelle viste lista. Il contenuto completo e disponibile nella vista di dettaglio.
+- **Database non MySQL**: Se l'applicazione usa SQLite o PostgreSQL, i grafici di throughput e il riepilogo delle performance falliranno invece di mostrare dati vuoti. Le altre sezioni della dashboard (broker, log messaggi, panoramica statistiche) continuano a funzionare normalmente.
+- **Driver coda sync**: L'endpoint di health check potrebbe riportare un errore quando l'applicazione usa il driver di coda sync. La pagina statistiche della dashboard gestisce questo caso e mostra zero job pendenti.
 
 ## Permessi e Accesso
 

@@ -123,6 +123,18 @@ Tutti e tre gli endpoint restituiscono dati vuoti con metadato `logging_enabled:
 
 Il riempimento gap assicura che ogni bucket temporale abbia un'entry (count = 0 se nessun messaggio).
 
+**Avviso compatibilita database**: `MetricsController` utilizza `DATE_FORMAT()` specifico di MySQL per il bucketing temporale in `getThroughputByMinute()` e `getThroughputByHour()`, e `DATE()` in `getThroughputByDay()`. Queste funzioni non esistono in SQLite o PostgreSQL:
+
+| Metodo | Espressione MySQL | Equivalente SQLite | Equivalente PostgreSQL |
+|--------|------------------|-------------------|----------------------|
+| `getThroughputByMinute()` | `DATE_FORMAT(created_at, "%Y-%m-%d %H:%i:00")` | `strftime('%Y-%m-%d %H:%M:00', created_at)` | `to_char(created_at, 'YYYY-MM-DD HH24:MI:00')` |
+| `getThroughputByHour()` | `DATE_FORMAT(created_at, "%Y-%m-%d %H:00:00")` | `strftime('%Y-%m-%d %H:00:00', created_at)` | `to_char(created_at, 'YYYY-MM-DD HH24:00:00')` |
+| `getThroughputByDay()` | `DATE(created_at)` | `date(created_at)` | `created_at::date` |
+
+Anche il metodo `summary()` usa `DATE_FORMAT()` per la query del minuto di picco. Questo significa che **gli endpoint metriche funzionano solo su MySQL/MariaDB**. Il gap non influisce sugli unit test (che non testano MetricsController direttamente contro un database) ma causerebbe errori SQL se il pacchetto viene usato con SQLite o PostgreSQL in produzione.
+
+Nota: `MessageLogController::topics()` usa `selectRaw('topic, COUNT(*) as count')` che e compatibile cross-database — solo `MetricsController` ha questa limitazione.
+
 **Summary** — metriche di performance aggregate:
 - Ultima ora: totale + media per minuto
 - Ultime 24h: totale + media per ora
@@ -133,12 +145,49 @@ Il riempimento gap assicura che ogni bucket temporale abbia un'entry (count = 0 
 
 La route catch-all `GET /` renderizza `mqtt-broadcast::dashboard` — una vista Blade che avvia l'applicazione React single-page. L'app React consuma tutti gli endpoint API sopra descritti.
 
+### Internals di DashboardStatsController
+
+`DashboardStatsController::index()` aggrega dati da fonti multiple in una singola richiesta:
+
+1. **Conteggi broker** — carica tutti i broker da `BrokerRepository::all()`, filtra quelli attivi per finestra heartbeat di 2 minuti.
+2. **Master supervisor** — cerca l'entry in cache tramite `MasterSupervisorRepository::find()` usando il nome configurato.
+3. **Statistiche messaggi** — tre query COUNT su `mqtt_loggers` (condizionali su `logs.enable`).
+4. **Dimensione coda** — `Queue::size()` racchiuso in try/catch perche alcuni driver di coda (es. `sync`) non supportano `size()` e lanciano eccezione.
+5. **Job falliti** — due query COUNT su `mqtt_failed_jobs` (totale + in attesa di retry).
+6. **Memoria/uptime** — derivati dai dati cache del master supervisor tramite metodi helper.
+
+**`calculateMemoryUsagePercent()`** — calcola `(memory_bytes / (threshold_mb * 1024 * 1024)) * 100`, arrotondato a 1 decimale. Restituisce 0 se la soglia e zero o negativa (protezione divisione per zero).
+
+**`calculateUptime()`** — effettua il parse di `started_at` dalla cache via `Carbon::parse()`, calcola `now()->diffInSeconds()` con flag `false` per valore assoluto. Restituisce 0 se `started_at` e null.
+
+**Inconsistenza Queue::size()**: `DashboardStatsController` racchiude `Queue::size()` in un blocco try/catch, con fallback a 0. `HealthController::check()` chiama `Queue::size()` direttamente senza gestione errori — questo significa che l'endpoint di salute potrebbe lanciare un'eccezione non gestita quando si usa il driver di coda `sync`.
+
+### Pattern Query N+1
+
+**BrokerController::index()** — per ogni broker, esegue 2 query aggiuntive quando il logging e abilitato:
+- `MqttLogger::where('broker', $broker->connection)->where('created_at', '>', now()->subDay())->count()` — conteggio messaggi 24h
+- `MqttLogger::where('broker', $broker->connection)->orderBy('created_at', 'desc')->first()` — timestamp ultimo messaggio
+
+Con N broker e logging abilitato, produce 2N+1 query totali. Accettabile per conteggi broker bassi (tipicamente 1–5) ma scala linearmente.
+
+**BrokerController::show()** — carica tutti i broker via `$brokerRepository->all()` poi filtra con `->firstWhere('id', $id)`. Questo e un filtro in memoria, non una clausola WHERE — tutte le righe broker vengono caricate dal database anche se ne serve solo una.
+
+### Metodi Helper di HealthController
+
+**`getMasterSupervisorData()`** — gestisce sia il formato array che oggetto dal livello cache (`MasterSupervisorRepository` puo restituire entrambi a seconda della serializzazione del driver cache). Normalizza ad array tramite cast `(array)`. Estrae `pid`, `started_at`, `memory`, `supervisors_count` con default null-safe.
+
+**`checkMemoryStatus()`** — determinazione stato a tre livelli usando lo stesso calcolo bytes-to-threshold di `DashboardStatsController`. Lo stato `unknown` e unico di questo metodo — appare solo quando il master supervisor non e in cache.
+
 ## Componenti Chiave
 
 | File | Classe/Metodo | Responsabilita |
 |------|--------------|----------------|
 | `src/Http/Controllers/HealthController.php` | `HealthController::check()` | Health check di sistema (200/503) con risultati controlli individuali |
+| `src/Http/Controllers/HealthController.php` | `HealthController::getMasterSupervisorData()` | Normalizza dati cache array/oggetto in formato risposta |
+| `src/Http/Controllers/HealthController.php` | `HealthController::checkMemoryStatus()` | Stato memoria a tre livelli (pass/warn/critical/unknown) |
 | `src/Http/Controllers/DashboardStatsController.php` | `DashboardStatsController::index()` | Statistiche panoramica dashboard aggregate |
+| `src/Http/Controllers/DashboardStatsController.php` | `DashboardStatsController::calculateMemoryUsagePercent()` | Byte memoria → percentuale soglia |
+| `src/Http/Controllers/DashboardStatsController.php` | `DashboardStatsController::calculateUptime()` | started_at dalla cache → secondi trascorsi |
 | `src/Http/Controllers/BrokerController.php` | `BrokerController::index()` | Lista tutti i broker con stato e metriche |
 | `src/Http/Controllers/BrokerController.php` | `BrokerController::show()` | Dettaglio singolo broker con messaggi recenti |
 | `src/Http/Controllers/BrokerController.php` | `BrokerController::determineConnectionStatus()` | Stato connessione a 4 livelli da eta heartbeat + flag working |
@@ -210,6 +259,8 @@ Campi dell'entry in cache: `pid`, `memory`, `started_at`, `supervisors_count`, `
 - **Master supervisor non in cache** — health check restituisce `unhealthy` (503); le statistiche mostrano memoria/uptime a zero; il controllo memoria restituisce stato `unknown`.
 - **Heartbeat stale** — i broker con `last_heartbeat_at` piu vecchio di 2 minuti sono classificati come `stale` / `disconnected` ma vengono comunque restituiti nelle liste.
 - **Fallimento parsing JSON** — `MessageLogController` effettua fallback alla stringa raw quando `json_decode` fallisce (verificato tramite `json_last_error()`).
+- **Driver coda sync** — `HealthController::check()` potrebbe lanciare eccezione quando `Queue::size()` viene chiamato sul driver `sync` (nessun try/catch). `DashboardStatsController` gestisce questo caso in modo graceful.
+- **Metriche solo MySQL** — `MetricsController` usa `DATE_FORMAT()` / `DATE()` che sono specifici di MySQL. Chiamare gli endpoint throughput o summary su SQLite o PostgreSQL produrra un errore SQL.
 
 ## Diagrammi Mermaid
 
@@ -269,6 +320,41 @@ stateDiagram-v2
     reconnecting --> disconnected : heartbeat > 2min
     reconnecting --> connected : heartbeat aggiornato + working
     disconnected --> connected : processo riavviato
+```
+
+### Flusso Aggregazione DashboardStatsController
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Stats as DashboardStatsController
+    participant BR as BrokerRepository
+    participant MSR as MasterSupervisorRepository
+    participant DB as Database
+    participant Q as Queue
+    participant FJ as FailedMqttJob
+
+    Client->>Stats: GET /api/stats
+    Stats->>BR: all()
+    BR-->>Stats: Collection<BrokerProcess>
+    Stats->>Stats: Filtra attivi (heartbeat < 2min)
+    Stats->>MSR: find(masterName)
+    MSR-->>Stats: array | null (dalla cache)
+
+    alt Logging abilitato
+        Stats->>DB: COUNT mqtt_loggers (ultima ora)
+        Stats->>DB: COUNT mqtt_loggers (ultime 24h)
+    end
+
+    Stats->>Q: size(queueName)
+    Note right of Stats: try/catch per driver sync
+
+    Stats->>FJ: COUNT mqtt_failed_jobs (totale)
+    Stats->>FJ: COUNT mqtt_failed_jobs (in attesa retry)
+
+    Stats->>Stats: calculateMemoryUsagePercent()
+    Stats->>Stats: calculateUptime()
+    Stats-->>Client: Risposta JSON
 ```
 
 ### Flusso Dati Throughput Metriche
