@@ -175,3 +175,124 @@ sequenceDiagram
         Job->>DB: FailedMqttJob::create (new record)
     end
 ```
+
+## Behavioral Details and Edge Cases
+
+### Retain Flag Lost on Retry
+
+`FailedJobController::retry()` dispatches a new `MqttMessageJob` with `topic`, `message`, `broker`, and `qos`, but **does not pass the `retain` flag**:
+
+```php
+MqttMessageJob::dispatch(
+    topic: $job->topic,
+    message: $job->message,
+    broker: $job->broker,
+    qos: $job->qos,
+    // retain is NOT passed — defaults to config value
+);
+```
+
+The retried job will use whatever `retain` value is configured in `connections.{broker}.retain` (default `false`), not the original job's retain flag. If the original message had `retain: true` and the config default is `false`, the retried message will be published without the retain flag.
+
+### Message Format Depends on Failure Point
+
+The `failed()` hook stores `$this->message` as-is. In `handle()`, the message is JSON-encoded before publishing:
+
+```php
+if (!is_string($this->message)) {
+    $this->message = json_encode($this->message, JSON_THROW_ON_ERROR);
+}
+```
+
+This means the stored message format varies depending on **where** the failure occurred:
+
+| Failure Point | `$this->message` State | Stored As |
+|---|---|---|
+| Rate limit check (before `mqtt()`) | Original mixed type | JSON cast by Eloquent (array → JSON string) |
+| `mqtt()` — config error (`$this->fail()`) | Original mixed type | JSON cast by Eloquent |
+| After `json_encode` but before `publish()` | Already a string | Stored as string (Eloquent JSON cast wraps in quotes) |
+| During `publish()` — connection/transfer error | Already a string | Stored as string |
+
+When retrying, `$job->message` is the Eloquent-decoded value (array or string depending on what was stored). The `MqttMessageJob` constructor accepts `mixed $message` so both work, but the encoding path may differ from the original dispatch.
+
+### Filter Behavior Asymmetry in `index()`
+
+The `index()` endpoint uses different matching strategies for its two filters:
+
+- **`broker`** — exact match: `where('broker', $broker)`
+- **`topic`** — partial match with wildcards: `where('topic', 'like', "%{$topic}%")`
+
+The topic filter is a substring search, not an MQTT wildcard match. Searching for `sensors` will match `home/sensors/temp`, `sensors/humidity`, and `my-sensors`. The `topic` column has no database index, so `LIKE '%…%'` performs a full table scan.
+
+### `show()` Response Merging
+
+The `show()` endpoint uses the spread operator to merge `formatJob()` output with full-detail fields:
+
+```php
+return [
+    ...$this->formatJob($job),       // includes message_preview, exception_preview
+    'exception' => $job->exception,   // overrides nothing (new key vs exception_preview)
+    'message' => $job->message,       // adds full message alongside message_preview
+];
+```
+
+The response contains **both** `message_preview` (100-char truncated) and `message` (full payload), and **both** `exception_preview` (first line) and `exception` (full stack trace). This is intentional — clients can display the preview in a summary area and the full content in a detail panel.
+
+### `destroy()` HTTP 204 with JSON Body
+
+`destroy()` returns `response()->json(status: 204)`. HTTP 204 No Content should conventionally have no body. Some HTTP clients (notably older Axios versions) may throw on 204 responses with a body. The dashboard's `deleteFailedJob()` API method does not read the response body — it uses `await api.delete(...)` without destructuring.
+
+### `flush()` Race Condition
+
+`flush()` reads the count before truncating:
+
+```php
+$count = FailedMqttJob::count();  // Step 1: read count
+FailedMqttJob::truncate();        // Step 2: truncate
+```
+
+There is no transaction wrapping these two operations. If a new `FailedMqttJob` is created between the `count()` and `truncate()` calls, it will be deleted but not counted in the response. This is a minor cosmetic issue — the returned `flushed` count may be lower than the actual number of deleted records.
+
+### `pending_retry` Semantics in Dashboard Stats
+
+`DashboardStatsController` calculates `pending_retry` as:
+
+```php
+'pending_retry' => FailedMqttJob::whereNull('retried_at')->count(),
+```
+
+This counts only jobs that have **never** been retried. Once a job is retried (even if the retry fails and creates a *new* failure record), the original record's `retried_at` is set and it exits the `pending_retry` count. The new failure record starts with `retried_at = null`, so it enters the count independently. The `pending_retry` metric therefore represents "new failures not yet acted upon," not "failures still unresolved."
+
+### Frontend Auto-Refresh
+
+The `useFailedJobs` hook uses `usePolling` with `window.mqttBroadcast.refreshInterval` (configurable, default typically 5 seconds). This means the failed jobs list auto-refreshes in the background. However, after explicit user actions (retry, delete, flush), `refetch?.()` is called to immediately update the list rather than waiting for the next poll cycle.
+
+The `FailedJobs` component tracks per-job retry loading state via a `Set<string>` (`retrying`), and bulk operation loading via a single `bulkLoading` boolean. During bulk operations, both "Retry All" and "Flush All" buttons are disabled to prevent concurrent bulk actions.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Loading: Component mounts
+    Loading --> Empty: 0 jobs returned
+    Loading --> Populated: jobs returned
+    Loading --> Error: API failure
+
+    Populated --> Populated: Poll refresh
+    Populated --> RetryingSingle: Click Retry on job
+    RetryingSingle --> Populated: refetch()
+
+    Populated --> BulkRetrying: Click Retry All
+    BulkRetrying --> Populated: refetch()
+
+    Populated --> BulkFlushing: Click Flush All + confirm
+    BulkFlushing --> Empty: refetch() (0 jobs)
+    BulkFlushing --> Populated: refetch() (new jobs added)
+
+    Populated --> DeletingSingle: Click Delete on job
+    DeletingSingle --> Populated: refetch()
+    DeletingSingle --> Empty: refetch() (0 jobs)
+
+    Empty --> Populated: Poll refresh (new failure arrives)
+    Error --> Loading: Poll refresh
+end
+```

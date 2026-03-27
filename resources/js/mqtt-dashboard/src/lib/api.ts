@@ -2,6 +2,7 @@ import axios from 'axios';
 import type {
   DashboardStats,
   Broker,
+  FailedJob,
   MessageLog,
   Topic,
   ThroughputData,
@@ -76,6 +77,34 @@ export const dashboardApi = {
     const { data } = await api.get<{ data: MetricsSummary | null }>(
       '/metrics/summary'
     );
+    return data.data;
+  },
+
+  getFailedJobs: async (params?: {
+    broker?: string;
+    topic?: string;
+    limit?: number;
+  }): Promise<FailedJob[]> => {
+    const { data } = await api.get<{ data: FailedJob[] }>('/failed-jobs', { params });
+    return data.data;
+  },
+
+  retryFailedJob: async (id: string): Promise<FailedJob> => {
+    const { data } = await api.post<{ data: FailedJob }>(`/failed-jobs/${id}/retry`);
+    return data.data;
+  },
+
+  retryAllFailedJobs: async (): Promise<{ retried: number }> => {
+    const { data } = await api.post<{ data: { retried: number } }>('/failed-jobs/retry-all');
+    return data.data;
+  },
+
+  deleteFailedJob: async (id: string): Promise<void> => {
+    await api.delete(`/failed-jobs/${id}`);
+  },
+
+  flushFailedJobs: async (): Promise<{ flushed: number }> => {
+    const { data } = await api.delete<{ data: { flushed: number } }>('/failed-jobs');
     return data.data;
   },
 };

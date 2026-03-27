@@ -94,6 +94,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Failed Jobs (Dead Letter Queue)
+    |--------------------------------------------------------------------------
+    |
+    | Stores MQTT publish jobs that failed after all retries are exhausted.
+    | Accessible via the dashboard "Failed Jobs" tab with retry/delete actions.
+    |
+    */
+
+    'failed_jobs' => [
+        'connection' => env('MQTT_FAILED_JOBS_DB_CONNECTION'),
+        'table' => env('MQTT_FAILED_JOBS_TABLE', 'mqtt_failed_jobs'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | ADVANCED OPTIONS
     |--------------------------------------------------------------------------
     |

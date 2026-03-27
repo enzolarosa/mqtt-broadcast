@@ -17,7 +17,7 @@
     </script>
 
  {{-- Vite assets will be injected here --}}
-    @vite(['resources/js/mqtt-dashboard/src/main.tsx', 'resources/css/mqtt-dashboard.css'])
+    @vite(['resources/js/mqtt-dashboard/src/main.tsx', 'resources/css/mqtt-dashboard.css'], 'vendor/mqtt-broadcast')
 </head>
 <body>
     {{-- React app mount point --}}

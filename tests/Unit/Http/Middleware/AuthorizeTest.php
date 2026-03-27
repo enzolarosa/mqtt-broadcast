@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
-use enzolarosa\MqttBroadcast\Http\Middleware\Authorize;
 use enzolarosa\MqttBroadcast\Models\BrokerProcess;
+use enzolarosa\MqttBroadcast\Repositories\MasterSupervisorRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
@@ -24,12 +23,20 @@ beforeEach(function () {
         'last_heartbeat_at' => now(),
     ]);
 
-    Cache::put('master-supervisor', [
+    (new MasterSupervisorRepository())->update('master', [
         'pid' => 12345,
         'started_at' => now(),
         'memory' => 50 * 1024 * 1024,
         'supervisors_count' => 1,
-    ], 3600);
+    ]);
+});
+
+// Reset app environment after each test to prevent migrate:rollback from
+// asking for confirmation (which would fail on the Mockery partial mock).
+afterEach(function () {
+    if (isset($this->app)) {
+        $this->app['env'] = 'testing';
+    }
 });
 
 /**
@@ -39,19 +46,15 @@ beforeEach(function () {
  */
 
 test('authorize middleware allows access in local environment', function () {
-    // Set environment to local
     $this->app['env'] = 'local';
 
     $response = $this->get('/mqtt-broadcast/api/health');
 
-    $response->assertStatus(200); // Not 403
+    $response->assertStatus(200);
 });
 
 test('authorize middleware denies access in production without gate', function () {
-    // Set environment to production
     $this->app['env'] = 'production';
-
-    // No custom gate defined, default gate denies
 
     $response = $this->get('/mqtt-broadcast/api/health');
 
@@ -59,30 +62,23 @@ test('authorize middleware denies access in production without gate', function (
 });
 
 test('authorize middleware allows access in production with custom gate', function () {
-    // Set environment to production
     $this->app['env'] = 'production';
 
-    // Define custom gate that allows access
     Gate::define('viewMqttBroadcast', function ($user = null) {
-        return true; // Allow all users
+        return true;
     });
 
     $response = $this->get('/mqtt-broadcast/api/health');
 
-    $response->assertStatus(200); // Allowed
+    $response->assertStatus(200);
 });
 
 test('authorize middleware can check user permissions', function () {
     $this->app['env'] = 'production';
 
-    // Create a test user
-    $user = new class
-    {
-        public $email = 'admin@example.com';
-    };
+    $user = new \Illuminate\Auth\GenericUser(['email' => 'admin@example.com']);
 
-    // Define gate with user check
-    Gate::define('viewMqttBroadcast', function ($checkedUser = null) use ($user) {
+    Gate::define('viewMqttBroadcast', function ($checkedUser = null) {
         if ($checkedUser === null) {
             return false;
         }
@@ -90,7 +86,6 @@ test('authorize middleware can check user permissions', function () {
         return in_array($checkedUser->email, ['admin@example.com']);
     });
 
-    // Authenticate the user
     $this->actingAs($user);
 
     $response = $this->get('/mqtt-broadcast/api/health');
@@ -101,13 +96,8 @@ test('authorize middleware can check user permissions', function () {
 test('authorize middleware denies unauthorized users', function () {
     $this->app['env'] = 'production';
 
-    // Create a test user
-    $user = new class
-    {
-        public $email = 'unauthorized@example.com';
-    };
+    $user = new \Illuminate\Auth\GenericUser(['email' => 'unauthorized@example.com']);
 
-    // Define gate that only allows admin@example.com
     Gate::define('viewMqttBroadcast', function ($checkedUser = null) {
         if ($checkedUser === null) {
             return false;
@@ -116,7 +106,6 @@ test('authorize middleware denies unauthorized users', function () {
         return in_array($checkedUser->email, ['admin@example.com']);
     });
 
-    // Authenticate the unauthorized user
     $this->actingAs($user);
 
     $response = $this->get('/mqtt-broadcast/api/health');
@@ -132,8 +121,8 @@ test('authorize middleware works in staging environment', function () {
 
     $response->assertStatus(403);
 
-    // With gate, should allow
-    Gate::define('viewMqttBroadcast', fn () => true);
+    // With gate that accepts nullable user (required for unauthenticated requests)
+    Gate::define('viewMqttBroadcast', fn ($user = null) => true);
 
     $response = $this->get('/mqtt-broadcast/api/health');
 

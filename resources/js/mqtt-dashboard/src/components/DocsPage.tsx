@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   HelpCircle,
   Github,
-  Globe
 } from 'lucide-react';
 import { Card } from './ui/card';
 
@@ -100,32 +99,12 @@ export function DocsPage() {
       </Card>
 
       {/* External Resources */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ResourceCard
-          icon={Github}
-          title="Full Documentation"
-          description="Complete guide on GitHub"
-          href="https://github.com/enzolarosa/mqtt-broadcast"
-        />
-        <ResourceCard
-          icon={Globe}
-          title="Tutorials & Guides"
-          description="In-depth tutorials and examples"
-          href="https://enzolarosa.dev/docs/mqtt-broadcast"
-        />
-        <ResourceCard
-          icon={BookOpen}
-          title="IoT Temperature Monitor"
-          description="Complete end-to-end example"
-          href="https://enzolarosa.dev/tutorials/iot-temperature-monitoring"
-        />
-        <ResourceCard
-          icon={Github}
-          title="Report Issues"
-          description="Found a bug? Let us know"
-          href="https://github.com/enzolarosa/mqtt-broadcast/issues"
-        />
-      </div>
+      <ResourceCard
+        icon={Github}
+        title="GitHub Wiki"
+        description="Full documentation, guides and examples"
+        href="https://github.com/enzolarosa/mqtt-broadcast/wiki"
+      />
     </div>
   );
 }
@@ -189,7 +168,7 @@ function TroubleshootItem({
           )}
           {hint && (
             <p className="text-xs text-muted-foreground italic mt-2">
-              💡 {hint}
+              {hint}
             </p>
           )}
         </div>

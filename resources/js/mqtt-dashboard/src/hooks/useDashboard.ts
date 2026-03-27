@@ -33,3 +33,14 @@ export function useThroughput(period: 'hour' | 'day' | 'week' = 'hour') {
     window.mqttBroadcast.refreshInterval
   );
 }
+
+export function useFailedJobs(params?: {
+  broker?: string;
+  topic?: string;
+  limit?: number;
+}) {
+  return usePolling(
+    () => dashboardApi.getFailedJobs(params),
+    window.mqttBroadcast.refreshInterval
+  );
+}

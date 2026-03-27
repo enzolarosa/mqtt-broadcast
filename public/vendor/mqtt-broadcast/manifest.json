@@ -1,6 +1,10 @@
 {
   "resources/css/mqtt-dashboard.css": {
     "file": "mqtt-dashboard.css",
+    "name": "mqtt-dashboard",
+    "names": [
+      "mqtt-dashboard.css"
+    ],
     "src": "resources/css/mqtt-dashboard.css",
     "isEntry": true
   },

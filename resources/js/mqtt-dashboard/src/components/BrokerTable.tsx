@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useBrokers } from '@/hooks/useDashboard';
-import { Loader2, Server } from 'lucide-react';
+import { Loader2, Server, WifiOff } from 'lucide-react';
 import type { Broker } from '@/types';
 
 const statusVariants = {
@@ -59,11 +59,17 @@ export function BrokerTable() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Server className="h-5 w-5" />
-            Active Brokers
+            Brokers
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center h-[200px]">
-          <p className="text-muted-foreground">No active brokers</p>
+          <div className="text-center">
+            <WifiOff className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-muted-foreground">No brokers found</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Run <code className="bg-muted px-1 rounded">php artisan mqtt-broadcast</code> to start
+            </p>
+          </div>
         </CardContent>
       </Card>
     );
@@ -74,7 +80,10 @@ export function BrokerTable() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Server className="h-5 w-5" />
-          Active Brokers
+          Brokers
+          <span className="text-sm font-normal text-muted-foreground">
+            ({brokers.length})
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent>

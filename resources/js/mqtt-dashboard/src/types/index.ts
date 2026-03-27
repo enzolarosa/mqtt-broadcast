@@ -20,6 +20,10 @@ export interface DashboardStats {
     threshold_mb: number;
     usage_percent: number;
   };
+  failed_jobs: {
+    total: number;
+    pending_retry: number;
+  };
   uptime_seconds: number;
 }
 
@@ -58,6 +62,20 @@ export interface ThroughputData {
   time: string;
   timestamp: string;
   count: number;
+}
+
+export interface FailedJob {
+  id: string;
+  broker: string;
+  topic: string;
+  message_preview: string | null;
+  exception_preview: string;
+  qos: number;
+  retain: boolean;
+  failed_at: string;
+  failed_at_human: string;
+  retried_at: string | null;
+  retry_count: number;
 }
 
 export interface MetricsSummary {

@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { StatsCard } from './StatsCard';
 import { ThroughputChart } from './ThroughputChart';
 import { BrokerTable } from './BrokerTable';
+import { FailedJobs } from './FailedJobs';
 import { MessageLog } from './MessageLog';
 import { ThemeToggle } from './ThemeToggle';
 import { Navigation, TabType } from './Navigation';
-import { DocsPage } from './DocsPage';
 import { useStats } from '@/hooks/useDashboard';
 import {
   Activity,
+  AlertTriangle,
   Server,
   Zap,
   Database,
@@ -42,7 +43,14 @@ export function Dashboard() {
               {stats && (
                 <Badge
                   variant={stats.status === 'running' ? 'success' : 'destructive'}
+                  className="flex items-center gap-1.5"
                 >
+                  {stats.status === 'running' && (
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-current" />
+                    </span>
+                  )}
                   {stats.status === 'running' ? 'Running' : 'Stopped'}
                 </Badge>
               )}
@@ -53,12 +61,16 @@ export function Dashboard() {
       </header>
 
       {/* Navigation Tabs */}
-      <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+      <Navigation
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        failedJobsCount={stats?.failed_jobs?.total ?? 0}
+      />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        {activeTab === 'docs' ? (
-          <DocsPage />
+        {activeTab === 'failed-jobs' ? (
+          <FailedJobs />
         ) : (
           <>
             {loading && (
@@ -82,7 +94,7 @@ export function Dashboard() {
             {stats && (
               <div className="space-y-6">
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                   <StatsCard
                     title="Messages/Minute"
                     value={stats.messages.per_minute.toFixed(2)}
@@ -120,6 +132,17 @@ export function Dashboard() {
                     description={`${stats.queue.name} queue`}
                     icon={Activity}
                     variant={stats.queue.pending > 100 ? 'warning' : 'default'}
+                  />
+                  <StatsCard
+                    title="Failed Jobs"
+                    value={stats.failed_jobs?.total ?? 0}
+                    description={
+                      stats.failed_jobs?.pending_retry > 0
+                        ? `${stats.failed_jobs.pending_retry} pending retry`
+                        : 'No failures'
+                    }
+                    icon={AlertTriangle}
+                    variant={stats.failed_jobs?.total > 0 ? 'danger' : 'default'}
                   />
                 </div>
 

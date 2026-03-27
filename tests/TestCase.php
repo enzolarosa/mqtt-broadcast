@@ -74,6 +74,13 @@ class TestCase extends Orchestra
         // Use array cache for tests
         config()->set('cache.default', 'array');
 
+        // Use sync queue for tests (avoids needing a jobs table)
+        config()->set('queue.default', 'sync');
+
+        // Failed jobs table uses same testing connection
+        config()->set('mqtt-broadcast.failed_jobs.connection', 'testing');
+        config()->set('mqtt-broadcast.failed_jobs.table', 'mqtt_failed_jobs');
+
         // Set up environments config
         config()->set('mqtt-broadcast.environments', [
             'local' => ['default'],

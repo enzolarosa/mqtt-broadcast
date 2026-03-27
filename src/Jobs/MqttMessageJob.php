@@ -7,6 +7,7 @@ namespace enzolarosa\MqttBroadcast\Jobs;
 use enzolarosa\MqttBroadcast\Exceptions\MqttBroadcastException;
 use enzolarosa\MqttBroadcast\Exceptions\RateLimitExceededException;
 use enzolarosa\MqttBroadcast\Factories\MqttClientFactory;
+use enzolarosa\MqttBroadcast\Models\FailedMqttJob;
 use enzolarosa\MqttBroadcast\MqttBroadcast;
 use enzolarosa\MqttBroadcast\Support\RateLimitService;
 use Illuminate\Bus\Queueable;
@@ -123,6 +124,26 @@ class MqttMessageJob implements ShouldQueue
         // Strategy is 'reject' - let attempt() throw the exception
         // (it will build the exception with proper context)
         $rateLimiter->attempt($this->broker);
+    }
+
+    /**
+     * Handle a job failure.
+     *
+     * Called automatically by Laravel when the job exhausts all retries
+     * or when $this->fail() is called explicitly.
+     * Persists the failure to the mqtt_failed_jobs table for DLQ tracking.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        FailedMqttJob::create([
+            'broker' => $this->broker ?? 'default',
+            'topic' => $this->topic,
+            'message' => $this->message,
+            'qos' => $this->cachedQos,
+            'retain' => $this->cachedRetain,
+            'exception' => (string) $exception,
+            'failed_at' => now(),
+        ]);
     }
 
     /**

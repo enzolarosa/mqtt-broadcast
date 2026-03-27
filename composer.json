@@ -57,8 +57,12 @@
         "test": "vendor/bin/pest",
         "test-coverage": "vendor/bin/pest --coverage",
         "pint": "vendor/bin/pint",
-        "serve": "testbench serve --host=0.0.0.0 --port=8000",
-        "db:seed": "testbench db:seed"
+        "serve": [
+            "@publish-assets",
+            "testbench serve --host=0.0.0.0 --port=8000"
+        ],
+        "publish-assets": "testbench vendor:publish --tag=mqtt-broadcast-assets --force",
+        "db:seed": "testbench db:seed --class=Workbench\\\\Database\\\\Seeders\\\\DatabaseSeeder"
     },
     "config": {
         "sort-packages": true,

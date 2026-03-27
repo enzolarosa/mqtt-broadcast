@@ -1,13 +1,14 @@
-import { Activity, BookOpen } from 'lucide-react';
+import { Activity, AlertTriangle } from 'lucide-react';
 
-export type TabType = 'dashboard' | 'docs';
+export type TabType = 'dashboard' | 'failed-jobs';
 
 interface NavigationProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
+  failedJobsCount?: number;
 }
 
-export function Navigation({ activeTab, onTabChange }: NavigationProps) {
+export function Navigation({ activeTab, onTabChange, failedJobsCount = 0 }: NavigationProps) {
   return (
     <nav className="border-b bg-card/50">
       <div className="container mx-auto px-4">
@@ -19,10 +20,11 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
             onClick={() => onTabChange('dashboard')}
           />
           <TabButton
-            icon={BookOpen}
-            label="Docs"
-            isActive={activeTab === 'docs'}
-            onClick={() => onTabChange('docs')}
+            icon={AlertTriangle}
+            label="Failed Jobs"
+            isActive={activeTab === 'failed-jobs'}
+            onClick={() => onTabChange('failed-jobs')}
+            badge={failedJobsCount > 0 ? failedJobsCount : undefined}
           />
         </div>
       </div>
@@ -35,9 +37,10 @@ interface TabButtonProps {
   label: string;
   isActive: boolean;
   onClick: () => void;
+  badge?: number;
 }
 
-function TabButton({ icon: Icon, label, isActive, onClick }: TabButtonProps) {
+function TabButton({ icon: Icon, label, isActive, onClick, badge }: TabButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -52,6 +55,11 @@ function TabButton({ icon: Icon, label, isActive, onClick }: TabButtonProps) {
     >
       <Icon className="h-4 w-4" />
       <span className="text-sm">{label}</span>
+      {badge !== undefined && (
+        <span className="rounded-full bg-destructive px-1.5 py-0.5 text-xs font-medium text-destructive-foreground leading-none">
+          {badge}
+        </span>
+      )}
     </button>
   );
 }

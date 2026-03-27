@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace enzolarosa\MqttBroadcast\Http\Controllers;
 
+use enzolarosa\MqttBroadcast\Models\FailedMqttJob;
 use enzolarosa\MqttBroadcast\Models\MqttLogger;
 use enzolarosa\MqttBroadcast\Repositories\BrokerRepository;
 use enzolarosa\MqttBroadcast\Repositories\MasterSupervisorRepository;
@@ -50,9 +51,14 @@ class DashboardStatsController extends Controller
             $messagesPerMinute = $messagesLastHour > 0 ? round($messagesLastHour / 60, 2) : 0;
         }
 
-        // Get queue size
+        // Get queue size (some drivers like 'sync' do not support size())
         $queueName = config('mqtt-broadcast.queue.name', 'default');
-        $queuePending = Queue::size($queueName);
+
+        try {
+            $queuePending = Queue::size($queueName);
+        } catch (\Throwable) {
+            $queuePending = 0;
+        }
 
         // Master supervisor data
         $masterData = is_array($masterSupervisor) ? $masterSupervisor : (array) $masterSupervisor;
@@ -87,6 +93,12 @@ class DashboardStatsController extends Controller
                     'current_mb' => $masterSupervisor ? round(($masterData['memory'] ?? 0) / 1024 / 1024, 2) : 0,
                     'threshold_mb' => config('mqtt-broadcast.memory.threshold_mb', 128),
                     'usage_percent' => $this->calculateMemoryUsagePercent($masterData),
+                ],
+
+                // Failed Jobs (DLQ)
+                'failed_jobs' => [
+                    'total' => FailedMqttJob::count(),
+                    'pending_retry' => FailedMqttJob::whereNull('retried_at')->count(),
                 ],
 
                 // Uptime

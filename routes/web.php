@@ -46,6 +46,20 @@ Route::prefix('api')->group(function () {
         ->name('mqtt-broadcast.metrics.throughput');
     Route::get('/metrics/summary', [\enzolarosa\MqttBroadcast\Http\Controllers\MetricsController::class, 'summary'])
         ->name('mqtt-broadcast.metrics.summary');
+
+    // Failed jobs (DLQ)
+    Route::get('/failed-jobs', [\enzolarosa\MqttBroadcast\Http\Controllers\FailedJobController::class, 'index'])
+        ->name('mqtt-broadcast.failed-jobs.index');
+    Route::get('/failed-jobs/{id}', [\enzolarosa\MqttBroadcast\Http\Controllers\FailedJobController::class, 'show'])
+        ->name('mqtt-broadcast.failed-jobs.show');
+    Route::post('/failed-jobs/retry-all', [\enzolarosa\MqttBroadcast\Http\Controllers\FailedJobController::class, 'retryAll'])
+        ->name('mqtt-broadcast.failed-jobs.retry-all');
+    Route::post('/failed-jobs/{id}/retry', [\enzolarosa\MqttBroadcast\Http\Controllers\FailedJobController::class, 'retry'])
+        ->name('mqtt-broadcast.failed-jobs.retry');
+    Route::delete('/failed-jobs', [\enzolarosa\MqttBroadcast\Http\Controllers\FailedJobController::class, 'flush'])
+        ->name('mqtt-broadcast.failed-jobs.flush');
+    Route::delete('/failed-jobs/{id}', [\enzolarosa\MqttBroadcast\Http\Controllers\FailedJobController::class, 'destroy'])
+        ->name('mqtt-broadcast.failed-jobs.destroy');
 });
 
 // Dashboard UI (React SPA)

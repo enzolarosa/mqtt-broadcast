@@ -18,7 +18,19 @@
       "Bash(then)",
       "Bash(fi)",
       "Bash(done)",
-      "Bash(xargs cat:*)"
+      "Bash(xargs cat:*)",
+      "Bash(node -e \"const d=require\\(''''fs''''\\).readFileSync\\(''''/dev/stdin'''',''''utf8''''\\); const v=JSON.parse\\(d\\); console.log\\(v.filter\\(x=>x.startsWith\\(''''8.''''\\)\\).slice\\(-5\\).join\\(''''\\\\n''''\\)\\)\")",
+      "Bash(node -e \"const d=require\\(''''fs''''\\).readFileSync\\(''''/dev/stdin'''',''''utf8''''\\); const v=JSON.parse\\(d\\); console.log\\(v.slice\\(-10\\).join\\(''''\\\\n''''\\)\\)\")",
+      "Bash(node -e \"const d=require\\(''''fs''''\\).readFileSync\\(''''/dev/stdin'''',''''utf8''''\\); const v=JSON.parse\\(d\\); console.log\\(v.slice\\(-8\\).join\\(''''\\\\n''''\\)\\)\")",
+      "Bash(vendor/bin/testbench vendor:publish --tag=mqtt-broadcast-assets --force 2>&1)",
+      "Bash(vendor/bin/testbench workbench:build 2>&1)",
+      "Bash(vendor/bin/testbench migrate:*)",
+      "Bash(vendor/bin/testbench db:seed)",
+      "Bash(vendor/bin/testbench db:seed --class=\"Workbench\\\\Database\\\\Seeders\\\\DatabaseSeeder\")",
+      "Bash(vendor/bin/testbench list:*)",
+      "Bash(python3 -m json.tool)",
+      "Bash(vendor/bin/testbench vendor:publish --tag=mqtt-broadcast-assets --force)",
+      "Bash(python3 -c \"import sys,json; d=sys.stdin.read\\(\\); print\\(json.dumps\\(json.loads\\(d\\), indent=2\\)\\)\")"
     ]
   }
 }
