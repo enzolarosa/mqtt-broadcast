@@ -18,9 +18,13 @@ Il sistema supporta multiple connessioni broker nominate, ciascuna con le propri
 - Ogni connessione deve avere un hostname valido (stringa non vuota) e una porta (tra 1 e 65535).
 - Il Quality of Service deve essere 0 (al più una volta), 1 (almeno una volta) o 2 (esattamente una volta).
 - Il timeout di connessione e l'intervallo keep-alive devono essere numeri positivi.
-- Quando l'autenticazione è abilitata, sia username che password sono richiesti — il sistema non tenterà di connettersi con credenziali parziali.
+- L'autenticazione è opt-in: il flag `auth` deve essere impostato esplicitamente a `true`. Quando abilitata, sia username che password sono richiesti — il sistema non tenterà di connettersi con credenziali parziali.
+- La crittografia TLS viene applicata solo quando l'autenticazione è abilitata. Le connessioni non autenticate (tipicamente sviluppo locale) saltano completamente la configurazione TLS.
 - Le impostazioni specifiche della connessione sovrascrivono i default globali. Se una connessione non specifica un valore, viene usato il default globale.
 - Impostare un valore di connessione a null significa "usa il default globale", non "disabilita questa impostazione".
+- Il prefisso dei topic è automatico: se una connessione ha un prefisso configurato, questo viene anteposto a ogni topic usato da quella connessione — sia in pubblicazione che nel filtraggio dei messaggi in arrivo nei listener.
+- La retention dei messaggi è configurabile per connessione: quando `retain` è abilitato, il broker conserva l'ultimo messaggio su ogni topic e lo consegna ai nuovi subscriber.
+- I job publisher usano sempre una sessione pulita (nessuno stato persistente sul broker). I processi subscriber usano il valore di clean session configurato per supportare sottoscrizioni persistenti tra i restart.
 
 ## Casi Limite
 
@@ -29,6 +33,8 @@ Il sistema supporta multiple connessioni broker nominate, ciascuna con le propri
 - **Certificati auto-firmati**: permessi di default per comodità nello sviluppo. Possono essere disabilitati per connessione negli ambienti di produzione che richiedono la validazione dei certificati.
 - **Collisione del client ID**: i job di pubblicazione usano un identificatore casuale univoco per ogni messaggio per evitare conflitti con il processo subscriber long-running. Il subscriber può usare sia un identificatore fisso (per sessioni persistenti) che uno auto-generato.
 - **Modifiche alla configurazione senza restart**: poiché la configurazione viene letta al momento del dispatch del job (per i publisher) e all'avvio del supervisor (per i subscriber), le modifiche alla configurazione hanno effetto al prossimo job di pubblicazione o restart del supervisor — non immediatamente per le connessioni subscriber attive.
+- **Prefisso topic vuoto**: quando nessun prefisso è configurato (default), i topic passano invariati. Il prefisso viene concatenato direttamente senza separatore — il prefisso stesso deve includere qualsiasi separatore desiderato (es. `home/` non `home`).
+- **Cache di retain e QoS**: il job publisher memorizza i valori QoS e retain al momento del dispatch. Se la configurazione cambia tra dispatch ed esecuzione, vengono usati i valori memorizzati dal momento del dispatch. Questi valori vengono anche persistiti nella dead letter queue se il job fallisce, preservando l'intento originale di pubblicazione.
 
 ## Permessi e Accesso
 

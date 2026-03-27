@@ -46,11 +46,67 @@ Qualsiasi errore di validazione lancia `MqttBroadcastException` con un messaggio
 3. **Istanziazione del client**: crea `new MqttClient($host, $port, $clientId)` — configurato ma **non connesso**.
 4. **`getConnectionSettings($connection, $cleanSession)`**: costruisce `PhpMqtt\Client\ConnectionSettings` con TLS, keep-alive, timeout e credenziali di autenticazione. Restituisce settings `null` quando `auth` è `false` (nessuna autenticazione necessaria).
 
+### TLS e Autenticazione in ConnectionSettings
+
+Quando `getConnectionSettingsFromConfig()` viene chiamato e `auth` è `true`, la factory costruisce un oggetto `PhpMqtt\Client\ConnectionSettings` con queste chiamate esatte:
+
+```php
+$connectionSettings = (new ConnectionSettings)
+    ->setKeepAliveInterval($config->aliveInterval())   // chiave config alive_interval
+    ->setConnectTimeout($config->timeout())             // chiave config timeout
+    ->setUseTls($config->useTls())                      // chiave config use_tls
+    ->setTlsSelfSignedAllowed($config->selfSignedAllowed()) // chiave config self_signed_allowed
+    ->setUsername($config->username())
+    ->setPassword($config->password());
+```
+
+Quando `auth` è `false`, la factory restituisce `null` per i settings. Questo significa che **le impostazioni TLS vengono applicate solo quando l'autenticazione è abilitata**. Una connessione con `use_tls: true` ma `auth: false` **non** avrà TLS applicato a livello di factory — il chiamante dovrebbe gestirlo separatamente. Questa è una scelta progettuale intenzionale: le connessioni non autenticate verso broker di sviluppo locale non necessitano dell'overhead di configurazione TLS.
+
+Il parametro `cleanSession` segue una risoluzione a due livelli: se il chiamante passa un valore esplicito, questo ha la precedenza; altrimenti viene usato il valore dalla configurazione.
+
+### Prefisso dei Topic tramite MqttBroadcast::getTopic()
+
+Il metodo statico `MqttBroadcast::getTopic()` risolve la stringa topic finale anteponendo il prefisso configurato della connessione:
+
+```php
+public static function getTopic(string $topic, string $broker = 'default'): string
+{
+    self::validateBrokerConfiguration($broker);
+    $prefix = config("mqtt-broadcast.connections.{$broker}.prefix", '');
+    return $prefix . $topic;
+}
+```
+
+Questo metodo viene chiamato in due punti critici:
+
+- **`MqttMessageJob::handle()`** — risolve il topic di pubblicazione: `MqttBroadcast::getTopic($this->topic, $this->broker)`
+- **`MqttListener::getTopic()`** — risolve il filtro topic per il matching del listener
+
+Il prefisso viene concatenato direttamente (nessun separatore). Se il prefisso è `home/` e il topic è `sensors/temp`, il risultato è `home/sensors/temp`. Se il prefisso è vuoto (default), il topic passa invariato.
+
+Il metodo valida anche la configurazione del broker prima di accedere al prefisso, quindi chiamare `getTopic()` con un broker non configurato lancia `MqttBroadcastException`.
+
+### Ciclo di Vita della Connessione Publisher (MqttMessageJob::mqtt())
+
+Il metodo privato `MqttMessageJob::mqtt()` orchestra la connessione completa del publisher in tre passaggi:
+
+1. **Creazione client**: `$factory->create($broker, $publisherClientId)` con un UUID random tramite `Str::uuid()`. Questo evita collisioni di client ID con il processo subscriber long-lived.
+2. **Ottenimento settings di connessione**: `$factory->getConnectionSettings($broker, $this->cleanSession)`. La proprietà `$cleanSession` ha default `true` nel costruttore del job — i publisher richiedono sempre una sessione pulita perché non hanno bisogno che il broker ricordi le sottoscrizioni.
+3. **Connessione (condizionale)**: se `$connectionInfo['settings']` non è null (autenticazione abilitata), il client viene connesso con i settings. Se null, il client viene restituito senza chiamare `connect()` — il metodo `handle()` verifica `$mqtt->isConnected()` e chiama `connect()` senza argomenti per i broker non autenticati.
+
+Il costruttore del job memorizza anche due valori di configurazione al momento del dispatch per evitare lookup ripetuti nel worker:
+
+- **`$cachedQos`**: `$this->qos ?? config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0)` — il parametro QoS esplicito ha precedenza sulla configurazione della connessione, che ricade su `0`.
+- **`$cachedRetain`**: `config('mqtt-broadcast.connections.'.$this->broker.'.retain', false)` — letto dalla chiave `retain` per-connessione, default `false`. Nota: retain viene letto direttamente dalla configurazione della connessione, non da `MqttConnectionConfig`. Questo è intenzionale — il job lo memorizza al momento del dispatch prima che la factory validi la configurazione completa.
+
+Questi valori memorizzati vengono usati nella chiamata `$mqtt->publish()` e persistiti nella DLQ se il job fallisce.
+
 ### Punti di Integrazione
 
-- **`MqttMessageJob::mqtt()`** chiama `$factory->create($broker, $uuid)` + `$factory->getConnectionSettings($broker, true)` — publisher effimero con ID random.
-- **`BrokerSupervisor`** chiama `$factory->create($broker)` — subscriber long-lived con ID definito in configurazione.
+- **`MqttMessageJob::mqtt()`** chiama `$factory->create($broker, $uuid)` + `$factory->getConnectionSettings($broker, true)` — publisher effimero con ID random e sessione pulita forzata.
+- **`BrokerSupervisor`** chiama `$factory->create($broker)` — subscriber long-lived con ID definito in configurazione. Usa il valore `clean_session` dalla configurazione (default: `false`) per supportare sessioni persistenti.
 - **`MqttBroadcastCommand`** valida l'esistenza della configurazione tramite `MqttConnectionConfig::fromConnection()` durante l'avvio.
+- **`MqttBroadcast::getTopic()`** usato sia da `MqttMessageJob::handle()` che da `MqttListener::getTopic()` per risolvere i topic con prefisso.
 
 ## Componenti Principali
 
@@ -60,6 +116,12 @@ Qualsiasi errore di validazione lancia `MqttBroadcastException` con un messaggio
 | `src/Support/MqttConnectionConfig.php` | `::fromConnection($name)` | Costruttore nominato: legge config, merge default, valida |
 | `src/Support/MqttConnectionConfig.php` | `::fromArray($config)` | Costruttore nominato: valida array raw (per testing/uso personalizzato) |
 | `src/Support/MqttConnectionConfig.php` | `->toArray()` | Serializzazione per compatibilità retroattiva |
+| `src/Support/MqttConnectionConfig.php` | `->requiresAuth()` | Restituisce `true` quando la chiave config `auth` è `true` |
+| `src/Support/MqttConnectionConfig.php` | `->retain()` | Restituisce il flag retain (per-connessione o default) |
+| `src/Support/MqttConnectionConfig.php` | `->cleanSession()` | Restituisce il flag clean session (per-connessione o default) |
+| `src/Support/MqttConnectionConfig.php` | `->prefix()` | Restituisce la stringa prefisso topic |
+| `src/Support/MqttConnectionConfig.php` | `->useTls()` | Restituisce `true` quando TLS è abilitato |
+| `src/Support/MqttConnectionConfig.php` | `->selfSignedAllowed()` | Restituisce `true` quando certificati TLS auto-firmati sono permessi |
 | `src/Support/MqttConnectionConfig.php` | `validateHost()` | Controllo stringa non vuota |
 | `src/Support/MqttConnectionConfig.php` | `validatePort()` | Controllo range intero 1–65535 |
 | `src/Support/MqttConnectionConfig.php` | `validateQos()` | Intero 0, 1, o 2 |
@@ -71,6 +133,7 @@ Qualsiasi errore di validazione lancia `MqttBroadcastException` con un messaggio
 | `src/Factories/MqttClientFactory.php` | `createFromConfig($config, $clientId)` | Creazione type-safe da VO validato |
 | `src/Factories/MqttClientFactory.php` | `getConnectionSettings($connection)` | Costruisce `ConnectionSettings` con auth/TLS |
 | `src/Factories/MqttClientFactory.php` | `getConnectionSettingsFromConfig($config)` | Settings type-safe da VO validato |
+| `src/MqttBroadcast.php` | `MqttBroadcast::getTopic($topic, $broker)` | Risolve la stringa topic con prefisso per un dato broker |
 
 ## Configurazione
 
@@ -80,11 +143,15 @@ Tutta la configurazione delle connessioni risiede sotto `mqtt-broadcast.connecti
 |--------|------|---------|-------------|
 | `host` | `string` | `127.0.0.1` | Hostname del broker MQTT (richiesto) |
 | `port` | `int` | `1883` | Porta del broker MQTT (richiesta, 1–65535) |
-| `username` | `string\|null` | `null` | Username per l'autenticazione |
-| `password` | `string\|null` | `null` | Password per l'autenticazione |
-| `prefix` | `string` | `''` | Prefisso topic aggiunto a tutti i topic |
-| `use_tls` | `bool` | `false` | Abilita crittografia TLS/SSL |
+| `auth` | `bool` | `false` | Abilita autenticazione. Quando `true`, `username` e `password` vengono validati come obbligatori |
+| `username` | `string\|null` | `null` | Username per l'autenticazione (richiesto quando `auth=true`) |
+| `password` | `string\|null` | `null` | Password per l'autenticazione (richiesta quando `auth=true`) |
+| `prefix` | `string` | `''` | Prefisso topic aggiunto a tutti i topic tramite `MqttBroadcast::getTopic()` |
+| `use_tls` | `bool` | `false` | Abilita crittografia TLS/SSL (applicata solo quando `auth=true`) |
 | `clientId` | `string\|null` | `null` | Client ID fisso (null = auto-genera UUID) |
+| `qos` | `int\|null` | `null` | Override QoS per-connessione (ricade sul default) |
+| `retain` | `bool\|null` | `null` | Override retain per-connessione (ricade sul default). Letto anche direttamente dal costruttore di `MqttMessageJob` |
+| `clean_session` | `bool\|null` | `null` | Override clean session per-connessione (ricade sul default). I publisher usano sempre `true`; i subscriber usano il valore dalla config |
 
 Default globali sotto `mqtt-broadcast.defaults.connection`:
 
@@ -191,6 +258,59 @@ sequenceDiagram
         Factory-->>Caller: {settings: null, cleanSession: false}
         Caller->>Client: connect()
     end
+```
+
+### Ciclo di Vita della Connessione Publisher
+
+```mermaid
+sequenceDiagram
+    participant Job as MqttMessageJob::handle()
+    participant Mqtt as MqttMessageJob::mqtt()
+    participant Factory as MqttClientFactory
+    participant Config as MqttConnectionConfig
+    participant Client as MqttClient
+
+    Job->>Mqtt: mqtt()
+    Mqtt->>Mqtt: $publisherClientId = Str::uuid()
+    Mqtt->>Factory: create($broker, $publisherClientId)
+    Factory->>Config: fromConnection($broker)
+    Config-->>Factory: VO validato
+    Factory->>Client: new MqttClient(host, port, uuid)
+    Factory-->>Mqtt: client (non connesso)
+
+    Mqtt->>Factory: getConnectionSettings($broker, $cleanSession=true)
+    Factory->>Config: fromConnection($broker)
+
+    alt auth=true
+        Factory-->>Mqtt: {settings: ConnectionSettings, cleanSession: true}
+        Mqtt->>Client: connect(settings, true)
+    else auth=false
+        Factory-->>Mqtt: {settings: null, cleanSession: false}
+    end
+
+    Mqtt-->>Job: client (potrebbe o meno essere connesso)
+
+    alt non connesso
+        Job->>Client: connect()
+    end
+
+    Job->>Job: json_encode($message) se non stringa
+    Job->>Client: publish(getTopic(), $message, $cachedQos, $cachedRetain)
+    Job->>Client: disconnect()
+```
+
+### Risoluzione del Prefisso Topic
+
+```mermaid
+flowchart LR
+    A["MqttBroadcast::getTopic('sensors/temp', 'default')"] --> B["validateBrokerConfiguration('default')"]
+    B -->|non valido| ERR["MqttBroadcastException"]
+    B -->|ok| C["Leggi prefisso config: 'home/'"]
+    C --> D["Concatena: 'home/' + 'sensors/temp'"]
+    D --> E["Risultato: 'home/sensors/temp'"]
+
+    F["MqttBroadcast::getTopic('sensors/temp', 'default')"] --> G["Prefisso vuoto ''"]
+    G --> H["Risultato: 'sensors/temp'"]
 ```
 
 ### Strategia del Client ID

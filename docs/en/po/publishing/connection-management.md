@@ -18,9 +18,13 @@ The system supports multiple named broker connections, each with their own setti
 - Every connection must have a valid hostname (non-empty string) and port (between 1 and 65535).
 - Quality of Service must be 0 (at most once), 1 (at least once), or 2 (exactly once).
 - Connection timeout and keep-alive interval must be positive numbers.
-- When authentication is enabled, both username and password are required — the system will not attempt to connect with partial credentials.
+- Authentication is opt-in: the `auth` flag must be explicitly set to `true`. When enabled, both username and password are required — the system will not attempt to connect with partial credentials.
+- TLS encryption is only applied when authentication is enabled. Unauthenticated connections (typically local development) skip TLS configuration entirely.
 - Connection-specific settings override global defaults. If a connection does not specify a value, the global default is used.
 - Setting a connection value to null means "use the global default", not "disable this setting".
+- Topic prefixing is automatic: if a connection has a prefix configured, it is prepended to every topic used by that connection — both when publishing and when filtering incoming messages in listeners.
+- Message retention is configurable per connection: when `retain` is enabled, the broker stores the last message on each topic and delivers it to new subscribers.
+- Publisher jobs always use a clean session (no persistent state on the broker). Subscriber processes use the configured clean session value to support persistent subscriptions across restarts.
 
 ## Edge Cases
 
@@ -29,6 +33,8 @@ The system supports multiple named broker connections, each with their own setti
 - **Self-signed certificates**: allowed by default for development convenience. Can be disabled per-connection for production environments that require certificate validation.
 - **Client ID collision**: publisher jobs use a unique random identifier for each message to avoid conflicting with the long-running subscriber process. The subscriber can use either a fixed identifier (for persistent sessions) or an auto-generated one.
 - **Config changes without restart**: since configuration is read at job dispatch time (for publishers) and at supervisor startup (for subscribers), config changes take effect on the next publish job or supervisor restart — not immediately for active subscriber connections.
+- **Empty topic prefix**: when no prefix is configured (default), topics pass through unchanged. The prefix is concatenated directly with no separator — the prefix itself must include any desired separator (e.g., `home/` not `home`).
+- **Retain and QoS caching**: the publisher job caches QoS and retain values at dispatch time. If configuration changes between dispatch and execution, the cached values from dispatch time are used. These cached values are also persisted to the dead letter queue if the job fails, preserving the original publish intent.
 
 ## Permissions & Access
 

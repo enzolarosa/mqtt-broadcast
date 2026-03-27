@@ -182,3 +182,21 @@
   Added: PO docs expanded with soft/hard retry modes, circuit breaker safety net, invalid config edge case, output structure
   Skipped: sales/ (infrastructure feature, not customer-facing)
   Remaining opportunities: document MetricsController MySQL-specific DATE_FORMAT() (SQLite compatibility gap), expand MqttListener::preProcessMessage() documentation with parameter signature details, document MqttBroadcast::getTopic() public method, document MqttMessageJob $cleanSession and retain config key, document auth key requirement in MqttConnectionConfig
+
+2026-03-27 | connection-management deepening (en + it)
+  Updated: docs/en/dev/publishing/connection-management.md
+  Updated: docs/en/po/publishing/connection-management.md
+  Updated: docs/it/dev/publishing/connection-management.md
+  Updated: docs/it/po/publishing/connection-management.md
+  Added: TLS and authentication in ConnectionSettings — exact builder code, TLS-only-with-auth design decision, cleanSession two-tier resolution
+  Added: MqttBroadcast::getTopic() documentation — prefix concatenation, usage in MqttMessageJob::handle() and MqttListener::getTopic(), validation behavior
+  Added: Publisher connection lifecycle (MqttMessageJob::mqtt()) — three-step flow (create client, get settings, conditional connect), $cachedQos and $cachedRetain dispatch-time caching, retain read directly from connection config not MqttConnectionConfig
+  Added: `auth` key to per-connection config table (was missing — controls whether auth validation and TLS are applied)
+  Added: `qos`, `retain`, `clean_session` as per-connection override keys in config table (were only shown under defaults)
+  Added: cleanSession behavioral difference: publisher always true, subscriber uses config value
+  Added: Publisher connection lifecycle sequence diagram (Mermaid)
+  Added: Topic prefix resolution flowchart (Mermaid)
+  Added: Key Components table expanded with requiresAuth(), retain(), cleanSession(), prefix(), useTls(), selfSignedAllowed() accessors and MqttBroadcast::getTopic()
+  Added: PO docs expanded with auth opt-in rule, TLS-with-auth-only rule, topic prefixing, retain per-connection, clean session publisher/subscriber distinction, empty prefix edge case, QoS/retain caching edge case
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Remaining opportunities: document MetricsController MySQL-specific DATE_FORMAT() (SQLite compatibility gap), expand MqttListener::preProcessMessage() documentation with parameter signature details
