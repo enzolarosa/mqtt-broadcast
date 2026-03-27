@@ -333,3 +333,27 @@
   Added: Fixed navigation state diagram to 2-tab model
   Added: Error handling table expanded with empty states, root element missing, concurrent poll requests, per-component error rendering
   Remaining opportunities: deepen installation-configuration, deprecations-migration, asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs
+
+2026-03-27 | installation-configuration deepening
+  Updated: docs/getting-started/installation-configuration.md
+  Published to Outline: updated "Getting Started" doc (id: 4a984347-050a-4003-9530-ffa3f7d7de48)
+  Added: Provider registration two-layer idempotency check analysis — config/app.php read first even on Laravel 11+, redundant but harmless
+  Added: registerInConfigApp() identical branches — if/else with same str_replace body
+  Added: Published stub boot ordering — parent::boot() dispatches to stub's registerGate() via polymorphism
+  Added: registerMigrations() runningInConsole() gate — HTTP requests skip migration discovery
+  Added: Authorize middleware redundant user argument — Gate::allows passes user explicitly but Gate auto-injects, explicit arg ignored
+  Added: Unauthorized response is plain text 403, not JSON
+  Added: Route caching caveat — registerRoutes() skips when cached, must clear cache after path/domain changes
+  Added: All per-connection keys table — auth, qos, retain, clean_session, rate_limiting (previously undocumented)
+  Added: Config merge behavior — null-stripping array_filter before array_merge with defaults, edge cases documented
+  Added: Rate Limiting config section — entirely missing from published config file, phantom config keys read by RateLimitService, enabled defaults to true but null limits = unlimited
+  Added: Legacy password config key — Str::random(32) regenerates per request, not used by any code path
+  Added: Config Resolution Flow mermaid diagram — fromConnection validation chain
+  Added: Validation Two-Tier Architecture section — facade-level (isset only) vs supervisor-level (full range/type validation), port 99999 gap
+  Added: config/app.php unreadable edge case in installation errors
+  Added: Auth validation only when auth=true, port out of range, QoS out of range, zero timeout errors
+  Added: Rate limit exceeded runtime error
+  Added: Service Provider Lifecycle sequence diagram — register/boot phases with method dispatch order
+  Added: Key Components table expanded with registerInBootstrapProviders, registerInConfigApp, registerRoutes, registerMigrations, offerPublishing, Authorize.handle(), MqttConnectionConfig.fromConnection()
+  Added: Helper function broker default mismatch note ('local' vs 'default')
+  Remaining opportunities: deepen deprecations-migration, asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs
