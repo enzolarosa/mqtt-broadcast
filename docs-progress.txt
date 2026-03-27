@@ -357,3 +357,21 @@
   Added: Key Components table expanded with registerInBootstrapProviders, registerInConfigApp, registerRoutes, registerMigrations, offerPublishing, Authorize.handle(), MqttConnectionConfig.fromConnection()
   Added: Helper function broker default mismatch note ('local' vs 'default')
   Remaining opportunities: deepen deprecations-migration, asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs
+
+2026-03-27 | deprecations-migration deepening
+  Updated: docs/migration/deprecations-migration.md
+  Added: BrokerValidator is runtime-broken — InvalidBrokerException import causes Class not found fatal (autoloader fails before deprecation notice fires)
+  Added: throw_unless eager evaluation — exception instantiated even on success path
+  Added: Brokers internals section — public property exposure ($broker, $client, $output), name generation (Str::random(4) memoized, precursor to ProcessIdentifier), client() redundant DB lookup (find by name when $this->broker already exists)
+  Added: Auto-connect vs no-connect split — auth=true auto-connects with full settings, auth=false returns disconnected client; monitor() then bare-connects with no settings
+  Added: DB read per tick analysis — $this->broker->working cached attribute never refreshed, pause/resume signals fatal (pause()/restart()/continue() methods not implemented on Brokers)
+  Added: Fixed sleep(1) loop, two-method exit indirection (exit→exitProcess for testability), terminateByPid DB-only cleanup
+  Added: Signal handling correction — ListensForSignals registers all 4 signals (SIGTERM/SIGUSR1/SIGUSR2/SIGCONT) but Brokers only implements terminate(), other signals cause method-not-found fatal
+  Added: Validation comparison table — BrokerValidator (3 checks, isset-only) vs MqttConnectionConfig (10+ checks with type/range validation, default merging, immutable VO return)
+  Added: Validation pipeline comparison Mermaid diagram
+  Added: Behavioral differences table — memory management, reconnection, circuit breaker, loop interval, signal support, client connection, termination cleanup, output routing, name generation
+  Added: Old vs new monitor loop sequence diagram comparison
+  Added: Error handling table — BrokerValidator fatal, invalid port/QoS silently accepted, SIGUSR1/2 fatal, connection loss, memory exhaustion, output callback null
+  Added: Key Components table expanded with Brokers::name(), Brokers::terminateByPid(), Brokers::terminate(), Brokers::exitProcess(), ProcessIdentifier::generateName()
+  Skipped: Outline publish (plans/doc.md does not exist — no publishing instructions available)
+  Remaining opportunities: deepen asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs
