@@ -1,0 +1,8 @@
+2026-03-27 | process-supervision (en + it)
+  Created: docs/en/dev/supervisor/process-supervision.md
+  Created: docs/en/po/supervisor/process-supervision.md
+  Created: docs/it/dev/supervisor/process-supervision.md
+  Created: docs/it/po/supervisor/process-supervision.md
+  Covered: MasterSupervisor, BrokerSupervisor, MemoryManager, signal handling, reconnection strategy, circuit breaker, graceful shutdown, configuration, database schema
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Still needs coverage: message publishing (MqttBroadcast facade, MqttMessageJob, sync/async), message subscription & events (MqttMessageReceived, listeners), dashboard & monitoring API (controllers, React frontend), rate limiting, health checking, installation & configuration guide
