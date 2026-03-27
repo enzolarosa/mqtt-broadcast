@@ -460,3 +460,27 @@
   Added: Mermaid diagrams — Rate Check Flow updated with throttle bug showing handle() continuation, Double Counting async lifecycle sequence diagram, attempt() internal flowchart
   Skipped: Outline publish (plans/doc.md does not exist)
   Remaining opportunities: deepen http-api-reference docs
+
+2026-03-27 | http-api-reference deepening
+  Updated: docs/dashboard/http-api-reference.md
+  Added: Memory key mismatch — HealthController and DashboardStatsController read $data['memory'] but repository stores memory_mb, always yields 0
+  Added: DashboardStatsController::calculateUptime() sign bug — now()->diffInSeconds($startedAt, false) produces negative result, reversed vs HealthController
+  Added: Queue::size() error handling asymmetry — DashboardStatsController has try/catch, HealthController does not (throws on sync driver)
+  Added: destroy() returns [] body despite 204 status — not a true empty-body response
+  Added: JSON decode redundancy — 4 json_decode per message in index(), 3 in show(), with Mermaid diagram
+  Added: Throughput data point off-by-one — inclusive loop produces 61/25/8 points not 60/24/7, with Mermaid diagram
+  Added: LIKE wildcard characters % and _ not escaped in topic filters — matches broader than intended
+  Added: retry() and retryAll() drop retain flag — retried messages default to retain:false
+  Added: Metrics rate dilution — divides by constant denominator (60/24/7) not actual elapsed time
+  Added: BrokerController::show() loads all() then firstWhere('id') — no findById() on repository
+  Added: BrokerController::index() O(n) message queries — 2N+1 queries when logging enabled
+  Added: null last_heartbeat_at handling — PHP_INT_MAX fallback → disconnected status
+  Added: Route ordering — retry-all before {id}/retry to avoid wildcard capture
+  Added: formatMessage()/formatJob() byte-level strlen/substr truncation — multibyte UTF-8 split risk
+  Added: FailedJobController::index() unfiltered COUNT(*) on every request for meta.total
+  Added: FailedJobController::flush() uses truncate() — resets auto-increment, bypasses model events
+  Added: Key Components table expanded from 8 to 24 entries with per-method detail and bug annotations
+  Added: Enhanced Mermaid diagrams — health check with memory key mismatch annotation, retry flow with retain dropped, JSON decode redundancy flowchart, throughput gap-fill inclusive loop
+  Added: Error handling table expanded with Queue::size() throw, LIKE wildcards, retain drop, negative uptime, destroy() body
+  Skipped: Outline publish (plans/doc.md does not exist)
+  All docs have been deepened — no remaining undocumented features or un-deepened docs
