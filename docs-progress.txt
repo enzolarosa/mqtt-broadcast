@@ -271,3 +271,17 @@
   Added: Error handling table expanded with monitor() unexpected return, test command always-SUCCESS exit code, no-processes-on-host scenario
   Added: Key Components table expanded with ProcessIdentifier::pid(), registerCommands() single-call detail
   Remaining opportunities: deepen dead-letter-queue, package-infrastructure, dashboard-frontend, installation-configuration, deprecations-migration, asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs
+
+2026-03-27 | dead-letter-queue deepening
+  Updated: docs/failed-jobs/dead-letter-queue.md
+  Added: HasExternalId::booted() static override analysis — null coalesce behavior, trait conflict risk, pre-set external_id preservation
+  Added: retry() three-query pattern — increment + update + fresh = 4 queries per retry, no batching
+  Added: retryAll() memory and query scaling — no chunking, 1+3N queries, memory exhaustion risk for large backlogs
+  Added: index() extra count query — unfiltered COUNT(*) on every request regardless of filters
+  Added: formatJob() byte-length truncation — strlen/substr byte semantics, multibyte UTF-8 truncation risk with raw pre-encoded strings
+  Added: Frontend error handling asymmetry — handleDelete has no try/catch, refetch unreachable on failure
+  Added: Retain AND cleanSession lost on retry — expanded existing section to cover cleanSession default behavior
+  Added: FailedMqttJob model runtime config resolution — getConnectionName/getTable read at call time, $fillable/$casts details
+  Added: Key Components table expanded with getConnectionName(), getTable(), FailedJob TS interface, useFailedJobs hook
+  Added: Mermaid sequence diagram — retry() and retryAll() query flow visualization
+  Remaining opportunities: deepen package-infrastructure, dashboard-frontend, installation-configuration, deprecations-migration, asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs
