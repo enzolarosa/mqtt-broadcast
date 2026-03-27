@@ -42,3 +42,12 @@
   Covered: InstallCommand (vendor:publish for config/provider/assets, Laravel 10/11+ provider registration, idempotent install), MqttBroadcastCommand (master name generation via ProcessIdentifier, duplicate prevention, environment resolution, fail-fast config validation, MasterSupervisor + BrokerSupervisor creation, SIGINT handler, blocking monitor loop), MqttBroadcastTerminateCommand (hostname-based process filtering, optional broker targeting, SIGTERM signaling, DB + cache cleanup, ESRCH handling, best-effort semantics), MqttBroadcastTestCommand (synchronous publish via facade), ProcessIdentifier (hostname slugification, static token memoization)
   Skipped: sales/ (infrastructure feature, not customer-facing)
   Still needs coverage: installation & configuration guide (comprehensive getting-started guide combining all features)
+
+2026-03-27 | dead-letter-queue (en + it)
+  Created: docs/en/dev/failed-jobs/dead-letter-queue.md
+  Created: docs/en/po/failed-jobs/dead-letter-queue.md
+  Created: docs/it/dev/failed-jobs/dead-letter-queue.md
+  Created: docs/it/po/failed-jobs/dead-letter-queue.md
+  Covered: FailedMqttJob model (configurable table/connection, JSON cast, HasExternalId UUID trait), MqttMessageJob::failed() hook (DLQ persistence on failure), FailedJobController (index with broker/topic filters, show with full detail, retry single/all with 1-min cooldown, destroy, flush/truncate), formatJob() response formatting (100-char message preview, first-line exception preview), DashboardStatsController failed_jobs stats integration, FailedJobs React component (per-job retry/delete, bulk retry/flush, loading states), dashboardApi client methods, mqtt_failed_jobs migration (configurable connection), failure triggers (config error, rate limit reject/throttle, network errors), API routes
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Still needs coverage: installation & configuration guide (comprehensive getting-started guide combining all features), ServiceProvider internals (service bindings, event registration, migration loading), Contracts/interfaces (Listener, Pausable, Restartable, Terminable), ListensForSignals trait, deprecated classes (Brokers, BrokerValidator)
