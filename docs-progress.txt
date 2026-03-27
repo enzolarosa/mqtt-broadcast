@@ -78,3 +78,12 @@
   Covered: Composer installation with auto-discovery, InstallCommand (publish config/provider/assets, Laravel 10/11+ provider registration), migration auto-loading (mqtt_loggers, mqtt_brokers, mqtt_failed_jobs tables), .env configuration (all MQTT_* vars), dashboard gate setup (viewMqttBroadcast, local bypass, Authorize middleware), supervisor startup, full configuration reference (connections, environments, dashboard, logging, DLQ, MQTT defaults, memory management, queue, supervisor, repository settings), error handling (installation/configuration/runtime), production deployment checklist (queue worker, Redis, gate, process manager, supervisord example)
   Skipped: sales/ (infrastructure feature, not customer-facing)
   Still needs coverage: deprecated classes (Brokers, BrokerValidator)
+
+2026-03-27 | deprecations-migration (en + it)
+  Created: docs/en/dev/migration/deprecations-migration.md
+  Created: docs/en/po/migration/deprecations-migration.md
+  Created: docs/it/dev/migration/deprecations-migration.md
+  Created: docs/it/po/migration/deprecations-migration.md
+  Covered: Brokers class (deprecated since 2.5.0, monolithic broker process manager, make/client/monitor/terminate methods, ListensForSignals usage, process lookup), BrokerValidator class (deprecated since 3.0, basic config validation, InvalidBrokerException dependency now removed), full migration paths (Brokers → MasterSupervisor + BrokerSupervisor + MqttClientFactory, BrokerValidator → MqttConnectionConfig), before/after code examples for each migration, Mermaid architecture comparison diagram, removal timeline, runtime deprecation notices (trigger_deprecation)
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  All identified features and deprecated classes are now documented. Remaining opportunities: deepen existing docs with additional edge cases, cross-reference between docs, or document any new features added in future development.
