@@ -87,3 +87,12 @@
   Covered: Brokers class (deprecated since 2.5.0, monolithic broker process manager, make/client/monitor/terminate methods, ListensForSignals usage, process lookup), BrokerValidator class (deprecated since 3.0, basic config validation, InvalidBrokerException dependency now removed), full migration paths (Brokers → MasterSupervisor + BrokerSupervisor + MqttClientFactory, BrokerValidator → MqttConnectionConfig), before/after code examples for each migration, Mermaid architecture comparison diagram, removal timeline, runtime deprecation notices (trigger_deprecation)
   Skipped: sales/ (infrastructure feature, not customer-facing)
   All identified features and deprecated classes are now documented. Remaining opportunities: deepen existing docs with additional edge cases, cross-reference between docs, or document any new features added in future development.
+
+2026-03-27 | testing-infrastructure (en + it)
+  Created: docs/en/dev/testing/testing-infrastructure.md
+  Created: docs/en/po/testing/testing-infrastructure.md
+  Created: docs/it/dev/testing/testing-infrastructure.md
+  Created: docs/it/po/testing/testing-infrastructure.md
+  Covered: TestCase base class (Orchestra Testbench bootstrap, SQLite in-memory DB, config defaults, setMqttConfig/getProtectedProperty/requiresBroker helpers), Pest.php bootstrap (uses directive, Mockery cleanup), MockMqttClient (drop-in MQTT client double, publish/subscribe recording, assertPublished/assertNotPublished assertions, connection state enforcement), BrokerAvailability (cached broker detection, MQTT_BROKER_AVAILABLE env var, live connection attempt, diagnostic socket fallback), test patterns (Mockery factory mocking, Queue::fake with protected property assertions, HTTP controller tests, andReturnUsing for real model returns, proc_open integration tests), dev dependencies (Pest 4, Testbench 9/10, PHPUnit 10/11/12, Larastan, Collision), composer scripts (test, test-coverage, pint, analyse)
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Remaining opportunities: deepen existing docs (cross-references between docs, additional edge cases), document MqttBroadcast::css()/js()/manifest() asset helper methods (currently undocumented but used by dashboard Blade template)
