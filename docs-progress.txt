@@ -422,3 +422,23 @@
   Added: Mermaid diagrams — enhanced flowchart with name mismatch highlighting, expanded sequence diagram showing name generation + controller read failure, new connection status state diagram
   Skipped: Outline publish (plans/doc.md does not exist — no publishing instructions available)
   Remaining opportunities: deepen memory-management, rate-limiting, or http-api-reference docs
+
+2026-03-27 | memory-management deepening
+  Updated: docs/supervisor/memory-management.md
+  Added: memory_get_usage(true) vs false distinction — real OS allocation in chunks, step-function behavior, threshold triggers may appear "sudden"
+  Added: Config read on every GC tick, not cached — runtime hot-reconfiguration possible but config resolution overhead per tick
+  Added: Grace period quantization — effective grace period is max(restart_delay_seconds, gc_interval * sleep), default 10s actually takes ~100s with gc_interval=100
+  Added: Recovery edge case — memory dropping from >=100% to 80-100% range logs both warning and recovery on same tick
+  Added: Warning skip — memory jumping from <80% directly to >=100% skips warning tier entirely
+  Added: Supervisor integration asymmetry table — tick return check, onRestart, output prefix, persist, dashboard observability
+  Added: BrokerSupervisor tick() return discarded — threshold exceeded returns false but value ignored, only log output
+  Added: BrokerSupervisor memory not observable from dashboard — no persist() method, stats only in logs
+  Added: Peak memory tracking side-effect — getMemoryStats() updates peakMemoryUsage, persist() is primary tracker
+  Added: Runtime Config Behavior section — hot-reconfiguration, gc_interval mid-flight change, loopIteration not reset
+  Added: Tuning guidelines expanded — gc_interval controls effective grace period, threshold_mb chunk granularity, restart_delay_seconds effective delay formula
+  Added: Error handling expanded — gc_interval=0 DivisionByZeroError, threshold_mb=0 always triggers, null output callback silent, freed 0.00 MB scenario
+  Added: Grace Period Quantization sequence diagram showing 100s actual delay with default settings
+  Added: Enhanced Tick Decision Flow diagram with config() reads, peak update, 80-100% range annotation
+  Added: Key Components table expanded with output() method, constructor initial peak
+  Skipped: Outline publish (plans/doc.md does not exist)
+  Remaining opportunities: deepen rate-limiting or http-api-reference docs
