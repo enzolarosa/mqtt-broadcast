@@ -399,3 +399,26 @@
   Added: Mermaid diagrams — CSS Processing Pipeline flowchart, css() Collection Logic flowchart
   Skipped: Outline publish (plans/doc.md does not exist — no publishing instructions available)
   Remaining opportunities: deepen repository-pattern, memory-management, rate-limiting, or http-api-reference docs
+
+2026-03-27 | repository-pattern deepening
+  Updated: docs/infrastructure/repository-pattern.md
+  Added: Master supervisor name mismatch — ProcessIdentifier::generateName('master') produces 'master-hostname-xxxx' but HealthController/DashboardStatsController look up config name 'master', find() never matches, always reports unhealthy/zero
+  Added: Cache state key mismatch — persist() stores memory_mb/peak_memory_mb/supervisors but controllers read memory/supervisors_count, values always null/0
+  Added: Unit mismatch — controllers apply bytes-to-MB conversion on values already stored in MB by MemoryManager
+  Added: Duplicate master detection broken — ProcessIdentifier generates unique token per process, find() checks own name not existing master's name
+  Added: File driver key listing broken — flat glob misses Laravel's nested hash directories, getKeyFromFile reads 'key' field that Laravel FileStore doesn't store
+  Added: Redis KEYS command production caveat — blocks server on large keysets
+  Added: Two name generators comparison table — BrokerRepository (fresh token) vs ProcessIdentifier (memoized static token)
+  Added: Phantom config keys — master_supervisor.cache_driver (never read), repository.broker.stale_threshold (never read, all consumers hardcode 2 min vs configured 5 min), repository.broker.heartbeat_column (never read)
+  Added: BrokerController::show() bypasses repository — loads all() then firstWhere('id') in memory, no findById() exists
+  Added: BrokerController::index() O(n) message queries — 2 queries per broker against mqtt_loggers when logging enabled
+  Added: MasterSupervisorRepository::all() sequential reads — find() per name, no Cache::many() batching
+  Added: ServiceBindings self-binding note — numeric keys, concrete classes only, cannot swap via container
+  Added: TTL constructor caching — singleton freezes cache_ttl at resolution time
+  Added: Cache driver configuration disconnect — repository uses Cache facade (app default) and config('cache.default'), not the mqtt-broadcast config key
+  Added: BrokerController::determineConnectionStatus() 4-tier state machine with hardcoded thresholds
+  Added: Corrected cache state structure — actual keys (memory_mb, peak_memory_mb, supervisors), no started_at field persisted
+  Added: Configuration table expanded with "Actually Used By" column exposing phantom config keys
+  Added: Mermaid diagrams — enhanced flowchart with name mismatch highlighting, expanded sequence diagram showing name generation + controller read failure, new connection status state diagram
+  Skipped: Outline publish (plans/doc.md does not exist — no publishing instructions available)
+  Remaining opportunities: deepen memory-management, rate-limiting, or http-api-reference docs
