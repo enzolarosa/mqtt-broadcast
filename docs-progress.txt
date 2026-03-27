@@ -68,4 +68,13 @@
   Created: docs/it/po/dashboard/dashboard-frontend.md
   Covered: React 19 SPA architecture (Vite + laravel-vite-plugin + Tailwind CSS), Blade template bootstrap (window.mqttBroadcast config injection), usePolling generic hook (setInterval + cleanup + state management), useDashboard domain hooks (useStats, useBrokers, useMessages, useThroughput, useFailedJobs), dashboardApi Axios client (all 14 methods with typed responses), Dashboard root component (tab state, stats cards, layout orchestration), Navigation component (TabType, TabButton with badge), StatsCard (variant coloring, trend support), ThroughputChart (Recharts LineChart, ResponsiveContainer, theme-aware styling), BrokerTable (connection_status state machine badges, uptime, 24h counts), MessageLog (date-fns relative timestamps, logging-disabled state), FailedJobs component (per-job retry/delete, bulk retry-all/flush-all, confirm dialog, loading states), DocsPage (CommandBlock, TroubleshootItem, ChecklistItem, ResourceCard helper components), ThemeToggle + useTheme (dark/light/system, localStorage persistence, prefers-color-scheme detection), UI primitives (Card/Badge/Button with CVA variants), cn() utility (clsx + tailwind-merge), TypeScript type system (DashboardStats, Broker, MessageLog, Topic, ThroughputData, FailedJob, MetricsSummary)
   Skipped: sales/ (infrastructure feature, not customer-facing)
-  Still needs coverage: deprecated classes (Brokers, BrokerValidator), installation & configuration quick-start guide
+  Still needs coverage: deprecated classes (Brokers, BrokerValidator)
+
+2026-03-27 | installation-configuration (en + it)
+  Created: docs/en/dev/getting-started/installation-configuration.md
+  Created: docs/en/po/getting-started/installation-configuration.md
+  Created: docs/it/dev/getting-started/installation-configuration.md
+  Created: docs/it/po/getting-started/installation-configuration.md
+  Covered: Composer installation with auto-discovery, InstallCommand (publish config/provider/assets, Laravel 10/11+ provider registration), migration auto-loading (mqtt_loggers, mqtt_brokers, mqtt_failed_jobs tables), .env configuration (all MQTT_* vars), dashboard gate setup (viewMqttBroadcast, local bypass, Authorize middleware), supervisor startup, full configuration reference (connections, environments, dashboard, logging, DLQ, MQTT defaults, memory management, queue, supervisor, repository settings), error handling (installation/configuration/runtime), production deployment checklist (queue worker, Redis, gate, process manager, supervisord example)
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Still needs coverage: deprecated classes (Brokers, BrokerValidator)
