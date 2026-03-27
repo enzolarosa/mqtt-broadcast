@@ -19,17 +19,23 @@ MQTT Broadcast funziona come un servizio in background che mantiene connessioni 
 - Una sola istanza del master supervisor puo' funzionare per macchina alla volta. Un secondo tentativo viene bloccato con un avviso.
 - Ogni connessione MQTT ha il proprio supervisor isolato — un fallimento in una connessione non influisce sulle altre.
 - Il sistema riprova le connessioni fallite fino a 20 volte per default prima di resettare o arrendersi (configurabile).
-- Se le connessioni falliscono continuamente per 1 ora (configurabile), il sistema rinuncia a quel broker.
+- Due comportamenti di retry sono disponibili dopo il raggiungimento del massimo:
+  - **Modalita' soft** (default): il contatore di retry si resetta e il sistema continua a riprovare indefinitamente con lunghe pause tra ogni batch.
+  - **Modalita' rigida**: il sistema si arrende e ferma la connessione. Il process manager dovrebbe riavviarlo.
+- Anche in modalita' soft, il circuit breaker garantisce che il sistema smetta eventualmente di riprovare dopo 1 ora (configurabile) di fallimento continuo — e' la rete di sicurezza contro loop di retry infiniti.
 - Alla fermata, il sistema disconnette tutti i broker e pulisce tutti i record di tracciamento prima di uscire.
 - I timestamp di heartbeat vengono aggiornati ogni secondo per ogni connessione attiva, abilitando il rilevamento di processi inattivi.
+- Tutto l'output del supervisor e' strutturato come tipo + messaggio (info o error). I messaggi di ogni connessione broker sono automaticamente prefissati con il nome del broker per facilitare il filtraggio dei log.
 
 ## Casi Limite
 
 - **Broker irraggiungibile all'avvio**: tutte le connessioni vengono validate prima che il sistema parta. Se una configurazione di connessione e' invalida, il sistema rifiuta di avviarsi e mostra gli errori.
-- **Broker che cade durante il funzionamento**: il supervisor entra in modalita' di riconnessione con backoff esponenziale. I messaggi non vengono persi se il broker supporta sessioni persistenti (QoS > 0).
+- **Broker che cade durante il funzionamento**: il supervisor entra in modalita' di riconnessione con backoff esponenziale (ritardi: 1s, 2s, 4s, 8s... fino a 60s max). I messaggi non vengono persi se il broker supporta sessioni persistenti (QoS > 0).
+- **Broker inattivo per periodo prolungato**: dopo 20 tentativi, il sistema resetta (modalita' soft) o si ferma (modalita' rigida). In entrambi i casi, se il tempo totale di fallimento supera 1 ora, il circuit breaker interrompe tutti i tentativi ed esce con un errore.
 - **Processo terminato con SIGKILL (-9)**: i record nel database e nella cache diventano obsoleti. Il comando di terminazione include la logica di pulizia per rimuovere i record orfani. La soglia di inattivita' (default: 5 minuti) aiuta inoltre la dashboard a rilevare i processi morti.
 - **Memory leak**: il sistema esegue la garbage collection ogni 100 iterazioni e monitora la memoria rispetto a una soglia configurabile (default: 128 MB). Se la memoria resta sopra la soglia per 10 secondi, il sistema si riavvia.
 - **Nomi broker duplicati**: ogni broker riceve un nome univoco usando l'hostname della macchina piu' un token casuale, prevenendo collisioni.
+- **Configurazione di riconnessione invalida**: se un parametro di riconnessione e' impostato a un valore non valido (es. max_retries = 0), il sistema rifiuta di avviarsi e riporta il valore specifico invalido.
 
 ## Permessi e Accesso
 

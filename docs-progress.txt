@@ -164,3 +164,21 @@
   Added: PO docs updated with business rules about test data factories and UUID identifiers
   Skipped: sales/ (infrastructure feature, not customer-facing)
   Remaining opportunities: deepen existing docs with cross-references between documents, document MetricsController MySQL-specific DATE_FORMAT() (SQLite compatibility gap), expand MqttListener::preProcessMessage() documentation with parameter signature details
+
+2026-03-27 | process-supervision deepening (en + it)
+  Updated: docs/en/dev/supervisor/process-supervision.md
+  Updated: docs/en/po/supervisor/process-supervision.md
+  Updated: docs/it/dev/supervisor/process-supervision.md
+  Updated: docs/it/po/supervisor/process-supervision.md
+  Added: BrokerSupervisor $options constructor parameter documentation with three-tier config resolution chain
+  Added: validateReconnectionConfig() throws \InvalidArgumentException (not MqttBroadcastException) — documented distinction
+  Added: Exact exponential backoff formula pow(2, retryCount - 1) with delay table
+  Added: Passive backoff mechanism explained (timestamp comparison, no sleep)
+  Added: Circuit breaker hard-exit behavior (terminate(1) in shouldRetry()) with firstFailureAt accumulation through soft resets
+  Added: Soft vs hard mode detailed behavioral distinction (retryCount reset vs terminate, firstFailureAt preservation)
+  Added: Output callback system documentation (setOutput on MasterSupervisor, constructor param on BrokerSupervisor, [$brokerName] prefix wrapping)
+  Added: MasterSupervisor::monitor() vs loop() separation for testability
+  Added: Config resolution Mermaid flowchart diagram
+  Added: PO docs expanded with soft/hard retry modes, circuit breaker safety net, invalid config edge case, output structure
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Remaining opportunities: document MetricsController MySQL-specific DATE_FORMAT() (SQLite compatibility gap), expand MqttListener::preProcessMessage() documentation with parameter signature details, document MqttBroadcast::getTopic() public method, document MqttMessageJob $cleanSession and retain config key, document auth key requirement in MqttConnectionConfig

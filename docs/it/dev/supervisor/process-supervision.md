@@ -27,9 +27,47 @@ Decisioni architetturali chiave:
 2. Verifica nella cache l'esistenza di un master con lo stesso nome — previene istanze duplicate sulla stessa macchina.
 3. Legge l'environment (opzione CLI > config `mqtt-broadcast.env` > `APP_ENV`) e carica le connessioni da `mqtt-broadcast.environments.{env}`.
 4. Valida tutte le configurazioni delle connessioni chiamando `MqttClientFactory::create()` per ciascuna — fail fast con errori descrittivi.
-5. Crea un `BrokerSupervisor` per connessione. Ogni supervisor si auto-registra nella tabella `mqtt_brokers` al momento della costruzione.
+5. Crea un `BrokerSupervisor` per connessione. Ogni supervisor si auto-registra nella tabella `mqtt_brokers` **al momento della costruzione** (pattern Horizon: registrazione immediata, non dopo la prima connessione).
 6. Registra l'handler `SIGINT` per lo shutdown controllato via Ctrl+C.
 7. Chiama `MasterSupervisor::monitor()` — entra nel loop infinito bloccante.
+
+### Costruzione del BrokerSupervisor e Risoluzione della Configurazione
+
+Il costruttore di `BrokerSupervisor` accetta un parametro opzionale `?array $options` che permette sovrascritture programmatiche delle impostazioni di riconnessione senza modificare i file di configurazione. Utile per i test e per i casi in cui una connessione specifica necessita di parametri di resilienza diversi.
+
+L'ordine di risoluzione per ogni impostazione di riconnessione segue una **catena a tre livelli**:
+
+1. `$options['key']` — sovrascrittura dal costruttore (priorita' massima)
+2. `config("mqtt-broadcast.connections.{$connection}.key")` — config per-connessione
+3. `config("mqtt-broadcast.defaults.connection.key", default)` — default globale
+
+Si applica a: `max_retries`, `terminate_on_max_retries`, `max_retry_delay`, `max_failure_duration`.
+
+Dopo la risoluzione, `validateReconnectionConfig()` valida tutti i valori:
+
+- `max_retries` deve essere >= 1
+- `max_retry_delay` deve essere >= 1
+- `max_failure_duration` deve essere >= 1
+- `terminate_on_max_retries` deve essere booleano
+
+**Importante**: `validateReconnectionConfig()` lancia `\InvalidArgumentException`, non `MqttBroadcastException`. E' l'unico punto nel pacchetto che usa `\InvalidArgumentException` — tutte le altre validazioni lanciano `MqttBroadcastException`. La distinzione e' intenzionale: la validazione della config e' un fallimento di precondizione a livello PHP, non un errore del dominio MQTT.
+
+```php
+// Esempio di sovrascrittura programmatica (es. nei test):
+$supervisor = new BrokerSupervisor(
+    brokerName: 'test-broker',
+    connection: 'default',
+    repository: $repo,
+    clientFactory: $factory,
+    output: null,
+    options: [
+        'max_retries' => 3,
+        'terminate_on_max_retries' => true,
+        'max_retry_delay' => 5,
+        'max_failure_duration' => 30,
+    ]
+);
+```
 
 ### Loop Principale (ogni secondo)
 
@@ -51,13 +89,39 @@ Ogni chiamata a `BrokerSupervisor::monitor()`:
 
 ### Strategia di Riconnessione
 
-La logica di riconnessione implementa un meccanismo di doppia protezione:
+La logica di riconnessione implementa un **meccanismo di tripla protezione** con proprieta' matematiche precise:
 
-- **Backoff esponenziale**: il ritardo raddoppia ad ogni fallimento (1s -> 2s -> 4s -> ... -> `max_retry_delay`), con tetto massimo a `max_retry_delay` (default: 60s).
-- **Limite massimo tentativi**: dopo `max_retries` (default: 20) fallimenti consecutivi:
-  - Se `terminate_on_max_retries == true`: il supervisor termina (fail rigido).
-  - Se `terminate_on_max_retries == false` (default): il contatore di retry si resetta con una lunga pausa (`max_retry_delay`), creando effettivamente cicli di retry infiniti.
-- **Circuit breaker**: se la durata totale di fallimento continuo supera `max_failure_duration` (default: 3600s / 1 ora), il supervisor termina indipendentemente dal conteggio dei retry.
+#### Backoff Esponenziale
+
+La formula del ritardo e' `min(pow(2, retryCount - 1), maxRetryDelay)`:
+
+| Tentativo | Formula | Ritardo |
+|-----------|---------|---------|
+| 1 | 2^0 | 1s |
+| 2 | 2^1 | 2s |
+| 3 | 2^2 | 4s |
+| 4 | 2^3 | 8s |
+| 5 | 2^4 | 16s |
+| 6 | 2^5 | 32s |
+| 7+ | 2^6+ | 60s (tetto a `max_retry_delay`) |
+
+Il ritardo viene applicato tramite confronto di timestamp in `shouldRetry()`: `(now - lastRetryAt) >= retryDelay`. Il backoff e' passivo — il supervisor non esegue sleep, semplicemente salta le iterazioni di `monitor()` finche' non e' passato abbastanza tempo.
+
+#### Limite Massimo Tentativi
+
+Dopo `max_retries` (default: 20) fallimenti consecutivi:
+
+- **Modalita' rigida** (`terminate_on_max_retries = true`): chiama `$this->terminate(1)` — codice di uscita 1, il processo si ferma. Il process manager (systemd/Supervisor) decide se riavviare. Da usare per connessioni che non dovrebbero riprovare indefinitamente.
+- **Modalita' soft** (`terminate_on_max_retries = false`, default): resetta `retryCount` a 0 e imposta `retryDelay` a `maxRetryDelay`. Crea cicli di retry infiniti con una lunga pausa tra ogni batch — il supervisor non si arrende mai a meno che il circuit breaker non scatti. Nota che `firstFailureAt` **non viene resettato** durante il soft reset, quindi la durata del circuit breaker continua ad accumularsi.
+
+#### Circuit Breaker
+
+Situato in `shouldRetry()`, verificato **prima** del controllo del timing del backoff. Se `firstFailureAt > 0` e `(now - firstFailureAt) >= maxFailureDuration`:
+
+1. Logga la durata del fallimento e la soglia.
+2. Chiama `$this->terminate(1)` — **uscita rigida con codice 1**.
+
+Il circuit breaker e' la rete di sicurezza finale. Anche in modalita' soft, garantisce che un broker in fallimento per `max_failure_duration` secondi (default: 3600s / 1 ora) venga eventualmente abbandonato. Poiche' i soft reset non azzerano `firstFailureAt`, la durata continua ad accumularsi attraverso i cicli di retry.
 
 ### Gestione dei Segnali
 
@@ -82,6 +146,30 @@ Quando viene chiamato `MasterSupervisor::terminate()`:
    - Gli errori sui singoli supervisor vengono catturati — garantisce che tutti i supervisor vengano puliti.
 3. Rimuove lo stato del master dalla cache tramite `repository->forget()`.
 4. Chiama `exit($status)`.
+
+### Sistema di Callback per l'Output
+
+Entrambi i supervisor usano un callback `Closure(string $type, string $line): void` per l'output. Questo disaccoppia i supervisor dalle implementazioni specifiche di logging (console, file, ecc.).
+
+**MasterSupervisor**: l'output viene impostato tramite `setOutput(?Closure $output)` dopo la costruzione. Passare `null` disabilita l'output. Il callback viene tipicamente collegato da `MqttBroadcastCommand` per inviare i messaggi alla console Artisan.
+
+**BrokerSupervisor**: l'output viene impostato tramite il parametro del costruttore `$output`. Internamente, il callback viene wrappato per preporre il nome del broker: `[$brokerName] messaggio`. Cio' significa che tutto l'output del BrokerSupervisor e' automaticamente prefissato con l'identificativo della connessione.
+
+```php
+// MqttBroadcastCommand collega l'output:
+$masterSupervisor->setOutput(function (string $type, string $line) {
+    // $type e' 'info' oppure 'error'
+    $this->output->writeln($line);
+});
+
+// BrokerSupervisor lo wrappa internamente:
+// output: fn ($type, $message) => $this->output($type, "[$this->brokerName] $message")
+```
+
+### MasterSupervisor: `monitor()` vs `loop()`
+
+- `monitor(): never` — il punto di ingresso bloccante. Registra i listener dei segnali, persiste lo stato iniziale, entra in `while(true)` con sleep di 1 secondo. Non ritorna mai.
+- `loop(): void` — esegue una **singola** iterazione di monitoraggio. Metodo pubblico, chiamabile indipendentemente. Questa separazione esiste per la testabilita': i test chiamano `loop()` direttamente per simulare singoli tick senza entrare in un loop infinito.
 
 ### Gestione della Memoria
 
@@ -232,6 +320,23 @@ stateDiagram-v2
 
     Connected --> ResetState: onConnectSuccess()
     ResetState --> Connected: retryCount = 0, firstFailureAt = 0
+```
+
+### Risoluzione Configurazione del BrokerSupervisor
+
+```mermaid
+flowchart TD
+    OPT{"$options['key']<br/>fornito?"}
+    OPT -->|Si| USE_OPT["Usa valore $options"]
+    OPT -->|No| CONN{"Config<br/>per-connessione?"}
+    CONN -->|Si| USE_CONN["Usa connections.{name}.key"]
+    CONN -->|No| DEF["Usa defaults.connection.key"]
+    USE_OPT --> VALIDATE["validateReconnectionConfig()"]
+    USE_CONN --> VALIDATE
+    DEF --> VALIDATE
+    VALIDATE --> OK{"Valori validi?"}
+    OK -->|Si| INIT["Inizializza supervisor"]
+    OK -->|No| THROW["throw InvalidArgumentException"]
 ```
 
 ### Sequenza di Shutdown Controllato

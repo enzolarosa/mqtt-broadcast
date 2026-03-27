@@ -27,9 +27,47 @@ Key design decisions:
 2. Checks cache for an existing master with the same name — prevents duplicate instances on the same machine.
 3. Reads the environment (CLI option > `mqtt-broadcast.env` config > `APP_ENV`) and loads connections from `mqtt-broadcast.environments.{env}`.
 4. Validates all connection configurations by calling `MqttClientFactory::create()` for each — fails fast with descriptive errors.
-5. Creates one `BrokerSupervisor` per connection. Each supervisor self-registers in `mqtt_brokers` table on construction.
+5. Creates one `BrokerSupervisor` per connection. Each supervisor self-registers in `mqtt_brokers` table **on construction** (Horizon pattern: register immediately, not after first connect).
 6. Registers `SIGINT` handler for Ctrl+C graceful shutdown.
 7. Calls `MasterSupervisor::monitor()` — enters the blocking infinite loop.
+
+### BrokerSupervisor Construction and Configuration Resolution
+
+The `BrokerSupervisor` constructor accepts an optional `?array $options` parameter that enables programmatic overrides of reconnection settings without modifying config files. This is useful for testing and for cases where a specific connection needs different resilience parameters.
+
+The resolution order for each reconnection setting follows a **three-tier chain**:
+
+1. `$options['key']` — constructor override (highest priority)
+2. `config("mqtt-broadcast.connections.{$connection}.key")` — per-connection config
+3. `config("mqtt-broadcast.defaults.connection.key", default)` — global default
+
+This applies to: `max_retries`, `terminate_on_max_retries`, `max_retry_delay`, `max_failure_duration`.
+
+After resolution, `validateReconnectionConfig()` validates all values:
+
+- `max_retries` must be >= 1
+- `max_retry_delay` must be >= 1
+- `max_failure_duration` must be >= 1
+- `terminate_on_max_retries` must be boolean
+
+**Important**: `validateReconnectionConfig()` throws `\InvalidArgumentException`, not `MqttBroadcastException`. This is the only place in the package that uses `\InvalidArgumentException` — all other validation throws `MqttBroadcastException`. The distinction is intentional: config validation is a PHP-level precondition failure, not an MQTT-domain error.
+
+```php
+// Programmatic override example (e.g. in tests):
+$supervisor = new BrokerSupervisor(
+    brokerName: 'test-broker',
+    connection: 'default',
+    repository: $repo,
+    clientFactory: $factory,
+    output: null,
+    options: [
+        'max_retries' => 3,
+        'terminate_on_max_retries' => true,
+        'max_retry_delay' => 5,
+        'max_failure_duration' => 30,
+    ]
+);
+```
 
 ### Main Loop (every 1 second)
 
@@ -51,13 +89,39 @@ Each call to `BrokerSupervisor::monitor()`:
 
 ### Reconnection Strategy
 
-The reconnection logic implements a dual-protection mechanism:
+The reconnection logic implements a **triple-protection mechanism** with precise mathematical properties:
 
-- **Exponential backoff**: delay doubles on each failure (1s -> 2s -> 4s -> ... -> `max_retry_delay`), capped at `max_retry_delay` (default: 60s).
-- **Max retries gate**: after `max_retries` (default: 20) consecutive failures:
-  - If `terminate_on_max_retries == true`: supervisor terminates (hard fail).
-  - If `terminate_on_max_retries == false` (default): retry counter resets with a long pause (`max_retry_delay`), effectively creating infinite-retry cycles.
-- **Circuit breaker**: if total continuous failure duration exceeds `max_failure_duration` (default: 3600s / 1 hour), supervisor terminates regardless of retry count.
+#### Exponential Backoff
+
+The delay formula is `min(pow(2, retryCount - 1), maxRetryDelay)`:
+
+| Attempt | Formula | Delay |
+|---------|---------|-------|
+| 1 | 2^0 | 1s |
+| 2 | 2^1 | 2s |
+| 3 | 2^2 | 4s |
+| 4 | 2^3 | 8s |
+| 5 | 2^4 | 16s |
+| 6 | 2^5 | 32s |
+| 7+ | 2^6+ | 60s (capped at `max_retry_delay`) |
+
+The delay is applied via timestamp comparison in `shouldRetry()`: `(now - lastRetryAt) >= retryDelay`. This means backoff timing is passive — the supervisor doesn't sleep, it simply skips `monitor()` iterations until enough time has passed.
+
+#### Max Retries Gate
+
+After `max_retries` (default: 20) consecutive failures:
+
+- **Hard mode** (`terminate_on_max_retries = true`): calls `$this->terminate(1)` — exit code 1, process stops. The process manager (systemd/Supervisor) decides whether to restart. Use for connections that should not retry indefinitely.
+- **Soft mode** (`terminate_on_max_retries = false`, default): resets `retryCount` to 0 and sets `retryDelay` to `maxRetryDelay`. This creates infinite retry cycles with a long pause between each batch — the supervisor never gives up unless the circuit breaker trips. Note that `firstFailureAt` is **not** reset during soft reset, so the circuit breaker duration continues accumulating.
+
+#### Circuit Breaker
+
+Located in `shouldRetry()`, checked **before** the backoff timing check. If `firstFailureAt > 0` and `(now - firstFailureAt) >= maxFailureDuration`:
+
+1. Logs the failure duration and threshold.
+2. Calls `$this->terminate(1)` — **hard exit with code 1**.
+
+The circuit breaker is the ultimate safety net. Even in soft mode, it ensures a broker that has been failing for `max_failure_duration` seconds (default: 3600s / 1 hour) is eventually abandoned. Since soft resets don't clear `firstFailureAt`, the duration keeps accumulating across retry cycles.
 
 ### Signal Handling
 
@@ -82,6 +146,30 @@ When `MasterSupervisor::terminate()` is called:
    - Errors on individual supervisors are caught — ensures all supervisors are cleaned up.
 3. Removes master state from cache via `repository->forget()`.
 4. Calls `exit($status)`.
+
+### Output Callback System
+
+Both supervisors use a `Closure(string $type, string $line): void` callback for output. This decouples supervisors from specific logging implementations (console, file, etc.).
+
+**MasterSupervisor**: output is set via `setOutput(?Closure $output)` after construction. Passing `null` disables output. The callback is typically wired by `MqttBroadcastCommand` to pipe messages to the Artisan console.
+
+**BrokerSupervisor**: output is set via constructor parameter `$output`. Internally, it wraps the callback to prepend the broker name: `[$brokerName] message`. This means all BrokerSupervisor output is automatically prefixed with the connection identifier.
+
+```php
+// MqttBroadcastCommand wires the output:
+$masterSupervisor->setOutput(function (string $type, string $line) {
+    // $type is 'info' or 'error'
+    $this->output->writeln($line);
+});
+
+// BrokerSupervisor wraps it internally:
+// output: fn ($type, $message) => $this->output($type, "[$this->brokerName] $message")
+```
+
+### MasterSupervisor: `monitor()` vs `loop()`
+
+- `monitor(): never` — the blocking entry point. Registers signal listeners, persists initial state, enters `while(true)` with 1-second sleep. Never returns.
+- `loop(): void` — performs a **single** monitoring iteration. Public method, callable independently. This separation exists for testability: tests call `loop()` directly to simulate individual ticks without entering an infinite loop.
 
 ### Memory Management
 
@@ -232,6 +320,23 @@ stateDiagram-v2
 
     Connected --> ResetState: onConnectSuccess()
     ResetState --> Connected: retryCount = 0, firstFailureAt = 0
+```
+
+### BrokerSupervisor Configuration Resolution
+
+```mermaid
+flowchart TD
+    OPT{"$options['key']<br/>provided?"}
+    OPT -->|Yes| USE_OPT["Use $options value"]
+    OPT -->|No| CONN{"Per-connection<br/>config exists?"}
+    CONN -->|Yes| USE_CONN["Use connections.{name}.key"]
+    CONN -->|No| DEF["Use defaults.connection.key"]
+    USE_OPT --> VALIDATE["validateReconnectionConfig()"]
+    USE_CONN --> VALIDATE
+    DEF --> VALIDATE
+    VALIDATE --> OK{"All values valid?"}
+    OK -->|Yes| INIT["Initialize supervisor"]
+    OK -->|No| THROW["throw InvalidArgumentException"]
 ```
 
 ### Graceful Shutdown Sequence
