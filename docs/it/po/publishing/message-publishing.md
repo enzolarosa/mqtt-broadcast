@@ -27,6 +27,10 @@ La pubblicazione messaggi consente all'applicazione di inviare messaggi ai broke
 - **I prefissi topic vengono applicati automaticamente**: tutti i messaggi su una data connessione broker vengono prefissati secondo configurazione, prevenendo collisioni di topic tra ambienti o tenant.
 - **I messaggi non-stringa vengono convertiti automaticamente in JSON**: array e oggetti vengono serializzati in modo trasparente.
 - **La configurazione della coda e' separata dalle code dell'applicazione**: i job di pubblicazione possono essere instradati su una coda e connessione dedicate per isolare il traffico MQTT dagli altri job in background.
+- **I messaggi falliti vengono salvati in una Dead Letter Queue**: quando un messaggio fallisce permanentemente (tutti i retry esauriti o errore irrecuperabile), il sistema salva i dettagli del messaggio — broker, topic, payload, errore — in una tabella dedicata ai job falliti. Questi possono essere ritentati o eliminati tramite la dashboard.
+- **Le funzioni helper puntano a un broker default diverso rispetto all'API principale**: le funzioni helper per invio rapido (`mqttMessage`/`mqttMessageSync`) usano la connessione broker "local" come default, mentre l'API principale usa "default". Gli sviluppatori devono esserne consapevoli quando passano da un'interfaccia all'altra.
+- **Le impostazioni QoS e retain vengono catturate al momento dell'invio, non dell'esecuzione**: quando un messaggio viene accodato in modo asincrono, il livello QoS e il flag retain vengono letti dalla configurazione al momento del dispatch. Se la configurazione cambia tra dispatch ed esecuzione, vengono usati i valori originali.
+- **I publisher iniziano sempre con una sessione MQTT pulita**: a differenza dei subscriber che possono mantenere sessioni persistenti, ogni operazione di pubblicazione parte da zero. Questo significa che nessuno stato residuo da connessioni precedenti puo' interferire.
 
 ## Casi Limite
 
@@ -37,6 +41,10 @@ La pubblicazione messaggi consente all'applicazione di inviare messaggi ai broke
 - **Errore di configurazione scoperto al momento della pubblicazione**: se la configurazione del broker e' mancante o non valida (es. nessun host), la pubblicazione viene rifiutata immediatamente — il messaggio non viene mai accodato.
 - **Errore di configurazione scoperto all'esecuzione del job**: se una validazione piu' approfondita della configurazione fallisce (es. valore QoS non valido, host malformato), il job fallisce permanentemente senza retry, poiche' gli errori di configurazione non si risolvono da soli.
 - **Connessioni broker multiple**: ogni connessione ha rate limit, prefissi topic e impostazioni QoS indipendenti. Un errore su un broker non influenza la pubblicazione sugli altri.
+- **Messaggio fallisce permanentemente**: quando un messaggio non puo' essere consegnato dopo tutti i tentativi di retry, viene automaticamente salvato nella Dead Letter Queue. La tab Failed Jobs della dashboard mostra queste voci con il messaggio originale, i dettagli dell'errore e le opzioni di retry.
+- **Nessuna autenticazione configurata**: se una connessione broker non ha username/password, il publisher si connette senza autenticazione. Questo funziona per broker che permettono connessioni anonime ma fallira' silenziosamente se il broker richiede autenticazione.
+- **Helper vs facade che puntano a broker diversi**: se uno sviluppatore usa `mqttMessage()` (default broker "local") in produzione dove e' configurato solo un broker "default", il messaggio fallira'. Il nome del broker deve corrispondere a una voce di configurazione esistente.
+- **Modifiche config QoS/retain dopo il dispatch**: per i messaggi in coda, i valori QoS e retain vengono bloccati quando il messaggio entra nella coda. Modificare la configurazione successivamente non influenza i messaggi gia' in attesa nella coda.
 
 ## Permessi e Accesso
 

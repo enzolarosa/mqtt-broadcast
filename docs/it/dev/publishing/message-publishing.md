@@ -42,6 +42,20 @@ Decisioni architetturali chiave:
    - `$mqtt->publish()` invia il messaggio con il topic prefissato, QoS e flag retain.
    - Il blocco `finally` disconnette il client.
 
+### Integrazione DLQ (Hook `failed`)
+
+Quando `MqttMessageJob` esaurisce tutti i retry o viene fatto fallire esplicitamente tramite `$this->fail($e)`, Laravel invoca il metodo `failed(\Throwable $exception)`. Questo persiste il fallimento nella tabella `mqtt_failed_jobs`:
+
+- `broker` — il broker di destinazione (fallback a `'default'` se null)
+- `topic` — la stringa del topic originale (senza prefisso)
+- `message` — il payload del messaggio originale
+- `qos` — livello QoS memorizzato nel costruttore
+- `retain` — flag retain memorizzato nel costruttore
+- `exception` — eccezione convertita in stringa (stack trace completo)
+- `failed_at` — timestamp corrente tramite `now()`
+
+Questo crea una voce nella Dead Letter Queue che puo' essere ritentata o ispezionata tramite la tab Failed Jobs della dashboard o l'API `FailedJobController`.
+
 ### Pubblicazione Sincrona (`publishSync`)
 
 Flusso identico, tranne:
@@ -49,9 +63,55 @@ Flusso identico, tranne:
 - Il parametro `$message` accetta `mixed` (stringa, array, oggetto).
 - Utile quando il chiamante necessita conferma dell'avvenuta pubblicazione prima di proseguire.
 
+### Inconsistenze della Superficie API
+
+Esistono differenze intenzionali tra le tre interfacce di pubblicazione:
+
+| Interfaccia | Tipo `$message` | `$broker` default | Note |
+|-------------|----------------|-------------------|------|
+| `MqttBroadcast::publish()` | `string` | `'default'` | Metodo facade — tipo string rigoroso |
+| `MqttBroadcast::publishSync()` | `mixed` | `'default'` | Accetta array/oggetti per comodita' |
+| `mqttMessage()` | `mixed` | `'local'` | Funzione helper — broker default diverso |
+| `mqttMessageSync()` | `mixed` | `'local'` | Funzione helper — broker default diverso |
+
+Le funzioni helper usano `'local'` come default, mentre la facade usa `'default'`. Questo significa che chiamare `mqttMessage('topic', 'msg')` punta alla connessione `local`, mentre `MqttBroadcast::publish('topic', 'msg')` punta alla connessione `default`. Questo e' intenzionale — gli helper sono pensati per invii rapidi in sviluppo locale.
+
+Il metodo facade `publish()` accetta solo `string`, ma `mqttMessage()` accetta `mixed` e lo passa direttamente. Poiche' `json_encode()` avviene dentro il job (non nella facade), payload non-stringa inviati tramite l'helper verranno serializzati nel metodo `handle()` del job. Tuttavia, PHPStan segnalera' chiamate dirette a `MqttBroadcast::publish()` con argomenti non-stringa.
+
+### Caching della Configurazione nel Costruttore
+
+Il costruttore di `MqttMessageJob` legge e memorizza due valori di configurazione al momento del **dispatch**, non dell'esecuzione:
+
+```php
+$this->cachedQos = $this->qos ?? config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
+$this->cachedRetain = config('mqtt-broadcast.connections.'.$this->broker.'.retain', false);
+```
+
+Dettaglio chiave: questi leggono dalla configurazione **per-connessione** (`connections.{broker}.qos` e `connections.{broker}.retain`), NON da `defaults.connection.qos`/`defaults.connection.retain`. Se la connessione non definisce `qos` o `retain`, il fallback e' rispettivamente `0` e `false` — i default globali in `defaults.connection.*` non vengono consultati.
+
+Il parametro costruttore `$qos` puo' sovrascrivere il QoS per-connessione (passato da `publish()` o `publishSync()`), ma non esiste un parametro per sovrascrivere retain — legge sempre dalla configurazione della connessione.
+
+### Parametro `$cleanSession`
+
+Il costruttore di `MqttMessageJob` accetta `$cleanSession = true`, ma questo parametro **non e' esposto** tramite i metodi `publish()` o `publishSync()` della facade. Il default e' `true` per tutte le connessioni publisher, il che significa che i publisher iniziano sempre con una sessione MQTT pulita (nessuna sottoscrizione persistente o messaggio in coda da sessioni precedenti).
+
+Questo contrasta con i subscriber (`BrokerSupervisor`), che usano il valore `clean_session` dalla configurazione — tipicamente `false` per mantenere sottoscrizioni persistenti.
+
+### Logica di Connessione nel Metodo `mqtt()`
+
+Il metodo privato `mqtt()` ha un pattern di connessione condizionale:
+
+1. Crea un client tramite `MqttClientFactory::create($broker, $publisherClientId)` — puo' lanciare `MqttBroadcastException` se la configurazione e' invalida.
+2. Chiama `MqttClientFactory::getConnectionSettings($broker, $cleanSession)` per ottenere le impostazioni auth/TLS.
+3. **Si connette solo se `$connectionInfo['settings']` e' non-null**. Se non sono configurati autenticazione o TLS, il client viene restituito non connesso.
+
+Poi in `handle()`, c'e' un guard `if (!$mqtt->isConnected())` prima di chiamare `$mqtt->connect()`. Questo gestisce il caso in cui `mqtt()` ha restituito un client non connesso (nessuna impostazione auth). Il pattern di doppio controllo assicura che il client sia sempre connesso prima della pubblicazione, indipendentemente dalla necessita' di autenticazione.
+
 ### Prefisso Topic
 
 `MqttBroadcast::getTopic($topic, $broker)` antepone il valore `prefix` dalla configurazione della connessione alla stringa del topic. Viene chiamato dentro `MqttMessageJob::handle()` prima della pubblicazione, assicurando che tutti i messaggi vadano al topic con il namespace corretto.
+
+> **Nota:** internamente `getTopic()` chiama `validateBrokerConfiguration()`, quindi invocarlo con un broker non configurato lancera' `MqttBroadcastException`. In pratica questo non e' un problema poiche' `publish()` e `publishSync()` eseguono la validazione prima del dispatch.
 
 ### Strategia Rate Limiting
 
@@ -89,6 +149,8 @@ Due strategie gestiscono il superamento del limite:
 | `src/Exceptions/RateLimitExceededException.php` | `RateLimitExceededException` | Rate limit superato con connessione, limite, finestra e retry-after |
 | `src/functions.php` | `mqttMessage()` | Helper: scorciatoia per `MqttBroadcast::publish()` |
 | `src/functions.php` | `mqttMessageSync()` | Helper: scorciatoia per `MqttBroadcast::publishSync()` |
+| `src/Jobs/MqttMessageJob.php` | `MqttMessageJob::failed()` | Persistenza DLQ — scrive in `mqtt_failed_jobs` al fallimento permanente |
+| `src/Models/FailedMqttJob.php` | `FailedMqttJob` | Modello Eloquent per le voci della Dead Letter Queue |
 
 ## Schema Database
 
@@ -170,6 +232,7 @@ Override rate limit per-connessione possono essere impostati nei blocchi delle s
 | Connessione persa durante la pubblicazione | `MqttMessageJob::handle()` | `DataTransferException` si propaga — la coda riprova |
 | Errore codifica JSON | `MqttMessageJob::handle()` | `JsonException` (JSON_THROW_ON_ERROR) si propaga — la coda riprova |
 | Qualsiasi errore durante la pubblicazione | `MqttMessageJob::handle()` blocco finally | Client MQTT disconnesso indipendentemente dal risultato |
+| Job fallito permanentemente (tutti i retry esauriti o `$this->fail()`) | `MqttMessageJob::failed()` | Persiste nella tabella `mqtt_failed_jobs` per tracciamento DLQ e visibilita' dalla dashboard |
 
 ## Diagrammi Mermaid
 

@@ -27,6 +27,10 @@ Message publishing allows the application to send messages to MQTT brokers — t
 - **Topic prefixes are applied automatically**: all messages on a given broker connection are prefixed per configuration, preventing topic collisions between environments or tenants.
 - **Non-string messages are auto-converted to JSON**: arrays and objects are serialized transparently.
 - **Queue configuration is separate from application queues**: publish jobs can be routed to a dedicated queue and connection to isolate MQTT traffic from other background jobs.
+- **Failed messages are saved to a Dead Letter Queue**: when a message permanently fails (all retries exhausted or unrecoverable error), the system saves the message details — broker, topic, payload, error — to a dedicated failed jobs table. These can be retried or deleted via the dashboard.
+- **Helper functions target a different default broker than the main API**: the quick-send helper functions (`mqttMessage`/`mqttMessageSync`) default to the "local" broker connection, while the primary API defaults to "default". Developers must be aware of this when switching between the two interfaces.
+- **QoS and retain settings are captured at send time, not execution time**: when a message is queued asynchronously, the QoS level and retain flag are read from configuration at the moment of dispatch. If configuration changes between dispatch and execution, the original values are used.
+- **Publishers always start with a clean MQTT session**: unlike subscribers which can maintain persistent sessions, every publish operation starts fresh. This means no stale state from previous connections can interfere.
 
 ## Edge Cases
 
@@ -37,6 +41,10 @@ Message publishing allows the application to send messages to MQTT brokers — t
 - **Configuration error discovered at publish time**: if the broker config is missing or invalid (e.g., no host), the publish is refused immediately — the message is never queued.
 - **Configuration error discovered at job execution time**: if deeper config validation fails (e.g., invalid QoS value, malformed host), the job fails permanently without retry, since configuration errors don't resolve on their own.
 - **Multiple broker connections**: each connection has independent rate limits, topic prefixes, and QoS settings. A failure on one broker does not affect publishing to others.
+- **Message fails permanently**: when a message cannot be delivered after all retry attempts, it is automatically saved to the Dead Letter Queue. The dashboard's Failed Jobs tab shows these entries with the original message, error details, and retry options.
+- **No authentication configured**: if a broker connection has no username/password, the publisher connects without authentication. This works for brokers that allow anonymous connections but will fail silently if the broker requires auth.
+- **Helper vs facade targeting different brokers**: if a developer uses `mqttMessage()` (defaults to "local" broker) in production where only a "default" broker is configured, the message will fail. The broker name must match an existing configuration entry.
+- **QoS/retain config changes after dispatch**: for queued messages, the QoS and retain values are locked in when the message enters the queue. Changing configuration afterward does not affect messages already waiting in the queue.
 
 ## Permissions & Access
 

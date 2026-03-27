@@ -238,3 +238,20 @@
   Added: PO docs expanded with MySQL dependency for metrics, queue size sync driver edge case, non-MySQL database edge case
   Skipped: sales/ (infrastructure feature, not customer-facing)
   Remaining opportunities: all identified features and edge cases are now documented. The codebase is comprehensively covered across 17 dev docs and corresponding PO docs. Future opportunities: document any new features added in development, or add cross-reference links between related documents.
+
+2026-03-27 | message-publishing deepening (en + it)
+  Updated: docs/en/dev/publishing/message-publishing.md
+  Updated: docs/en/po/publishing/message-publishing.md
+  Updated: docs/it/dev/publishing/message-publishing.md
+  Updated: docs/it/po/publishing/message-publishing.md
+  Added: DLQ integration — failed() hook persisting to mqtt_failed_jobs table on permanent failure
+  Added: API surface inconsistencies table — publish() string vs mixed, helper 'local' vs facade 'default' broker defaults
+  Added: Constructor config caching — $cachedQos/$cachedRetain read from per-connection config (not defaults.connection.*), dispatch-time vs execution-time distinction
+  Added: $cleanSession parameter documentation — always true for publishers, not exposed via facade, contrasts with subscriber behavior
+  Added: Conditional connection logic in mqtt() method — getConnectionSettings() may return null settings, isConnected() guard in handle()
+  Added: getTopic() validates broker config — can throw MqttBroadcastException on unconfigured broker
+  Added: Key Components table expanded with MqttMessageJob::failed() and FailedMqttJob model
+  Added: Error handling table expanded with permanent failure DLQ persistence
+  Added: PO docs expanded with DLQ persistence rule, helper vs facade broker default mismatch, QoS/retain dispatch-time capture, clean session rule, no-auth edge case, config-change-after-dispatch edge case
+  Skipped: sales/ (infrastructure feature, not customer-facing)
+  Remaining opportunities: deepen artisan-commands, dead-letter-queue, package-infrastructure, dashboard-frontend, installation-configuration, deprecations-migration, asset-pipeline, repository-pattern, memory-management, rate-limiting, or http-api-reference docs

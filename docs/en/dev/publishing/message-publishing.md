@@ -42,6 +42,20 @@ Key design decisions:
    - `$mqtt->publish()` sends the message with the prefixed topic, QoS, and retain flag.
    - `finally` block disconnects the client.
 
+### DLQ Integration (`failed` Hook)
+
+When `MqttMessageJob` exhausts all retries or is explicitly failed via `$this->fail($e)`, Laravel invokes the `failed(\Throwable $exception)` method. This persists the failure to the `mqtt_failed_jobs` table:
+
+- `broker` — the target broker (falls back to `'default'` if null)
+- `topic` — the original topic string (without prefix)
+- `message` — the original message payload
+- `qos` — cached QoS level from constructor
+- `retain` — cached retain flag from constructor
+- `exception` — stringified exception (full stack trace)
+- `failed_at` — current timestamp via `now()`
+
+This creates a Dead Letter Queue entry that can be retried or inspected via the dashboard's Failed Jobs tab or the `FailedJobController` API.
+
 ### Sync Publishing (`publishSync`)
 
 Identical flow, except:
@@ -52,6 +66,8 @@ Identical flow, except:
 ### Topic Prefixing
 
 `MqttBroadcast::getTopic($topic, $broker)` prepends the connection's `prefix` config value to the topic string. This is called inside `MqttMessageJob::handle()` before publishing, ensuring all messages go to the correct namespaced topic.
+
+Note: `getTopic()` internally calls `validateBrokerConfiguration()`, so calling it with an unconfigured broker will throw `MqttBroadcastException`. This is usually not an issue since `publish()`/`publishSync()` validate before the job is dispatched, and `getTopic()` in the job uses the same broker name.
 
 ### Rate Limiting Strategy
 
@@ -66,6 +82,50 @@ Two strategies handle limit exceeded:
 - **`reject`**: throws `RateLimitExceededException` with connection name, limit, window, and retry-after seconds.
 - **`throttle`**: in the job, calls `$this->release($delay)` to put the job back on the queue after the cooldown period.
 
+### API Surface Inconsistencies
+
+There are intentional differences between the three publishing interfaces:
+
+| Interface | `$message` type | Default `$broker` | Notes |
+|-----------|----------------|-------------------|-------|
+| `MqttBroadcast::publish()` | `string` | `'default'` | Facade method — strict string type |
+| `MqttBroadcast::publishSync()` | `mixed` | `'default'` | Accepts arrays/objects for convenience |
+| `mqttMessage()` | `mixed` | `'local'` | Helper function — different default broker |
+| `mqttMessageSync()` | `mixed` | `'local'` | Helper function — different default broker |
+
+The helper functions default to `'local'` while the facade defaults to `'default'`. This means calling `mqttMessage('topic', 'msg')` targets the `local` connection, while `MqttBroadcast::publish('topic', 'msg')` targets the `default` connection. This is by design — helpers are intended for local development quick-sends.
+
+The `publish()` facade method accepts `string` only, but `mqttMessage()` accepts `mixed` and passes it through. Since `json_encode()` happens inside the job (not the facade), non-string payloads dispatched via the helper will be serialized in the job's `handle()` method. However, PHPStan will flag direct calls to `MqttBroadcast::publish()` with non-string arguments.
+
+### Constructor Config Caching
+
+The `MqttMessageJob` constructor reads and caches two config values at **dispatch time**, not execution time:
+
+```php
+$this->cachedQos = $this->qos ?? config('mqtt-broadcast.connections.'.$this->broker.'.qos', 0);
+$this->cachedRetain = config('mqtt-broadcast.connections.'.$this->broker.'.retain', false);
+```
+
+Key detail: these read from the **per-connection** config (`connections.{broker}.qos` and `connections.{broker}.retain`), NOT from `defaults.connection.qos`/`defaults.connection.retain`. If the connection doesn't define `qos` or `retain`, the fallback is `0` and `false` respectively — the global defaults in `defaults.connection.*` are not consulted.
+
+The `$qos` constructor parameter can override the per-connection QoS (passed from `publish()` or `publishSync()`), but there is no parameter to override retain — it always reads from connection config.
+
+### `$cleanSession` Parameter
+
+The `MqttMessageJob` constructor accepts `$cleanSession = true`, but this parameter is **not exposed** through the facade's `publish()` or `publishSync()` methods. It defaults to `true` for all publisher connections, meaning publishers always start with a clean MQTT session (no persistent subscriptions or queued messages from previous sessions).
+
+This contrasts with subscribers (`BrokerSupervisor`), which use the `clean_session` value from config — typically `false` to maintain persistent subscriptions.
+
+### Connection Logic in `mqtt()` Method
+
+The private `mqtt()` method has a conditional connection pattern:
+
+1. Creates a client via `MqttClientFactory::create($broker, $publisherClientId)` — this may throw `MqttBroadcastException` if config is invalid.
+2. Calls `MqttClientFactory::getConnectionSettings($broker, $cleanSession)` to get auth/TLS settings.
+3. **Only connects if `$connectionInfo['settings']` is non-null**. If no authentication or TLS is configured, the client is returned unconnected.
+
+Then in `handle()`, there's an `if (!$mqtt->isConnected())` guard before calling `$mqtt->connect()`. This handles the case where `mqtt()` returned an unconnected client (no auth settings). The double-check pattern ensures the client is always connected before publishing, regardless of whether auth is required.
+
 ## Key Components
 
 | File | Class/Method | Responsibility |
@@ -78,6 +138,8 @@ Two strategies handle limit exceeded:
 | `src/Jobs/MqttMessageJob.php` | `MqttMessageJob` | Queueable job: rate limit, create client, encode, publish, disconnect |
 | `src/Jobs/MqttMessageJob.php` | `MqttMessageJob::checkRateLimit()` | Second-layer rate limit with throttle/reject strategies |
 | `src/Jobs/MqttMessageJob.php` | `MqttMessageJob::mqtt()` | Creates MQTT client via factory, connects with auth settings |
+| `src/Jobs/MqttMessageJob.php` | `MqttMessageJob::failed()` | DLQ persistence — writes to `mqtt_failed_jobs` on permanent failure |
+| `src/Models/FailedMqttJob.php` | `FailedMqttJob` | Eloquent model for Dead Letter Queue entries |
 | `src/Support/RateLimitService.php` | `RateLimitService` | Per-second/per-minute rate limit enforcement using Laravel RateLimiter |
 | `src/Support/RateLimitService.php` | `RateLimitService::attempt()` | Check + hit in one call; throws on exceed |
 | `src/Support/RateLimitService.php` | `RateLimitService::allows()` | Read-only check without incrementing |
@@ -170,6 +232,7 @@ Per-connection rate limit overrides can be set inside individual connection bloc
 | Connection lost during publish | `MqttMessageJob::handle()` | `DataTransferException` propagates — queue retries |
 | JSON encoding failure | `MqttMessageJob::handle()` | `JsonException` (JSON_THROW_ON_ERROR) propagates — queue retries |
 | Any error during publish | `MqttMessageJob::handle()` finally block | MQTT client disconnected regardless of outcome |
+| Job permanently failed (all retries exhausted or `$this->fail()`) | `MqttMessageJob::failed()` | Persists to `mqtt_failed_jobs` table for DLQ tracking and dashboard visibility |
 
 ## Mermaid Diagrams
 
